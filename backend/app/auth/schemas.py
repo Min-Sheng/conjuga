@@ -1,11 +1,26 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, field_validator
 
 
 class RegisterIn(BaseModel):
     email: str
     password: str
     display_name: str
+
+    @field_validator("password")
+    @classmethod
+    def password_length(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if len(v) > 72:
+            raise ValueError("Password must be 72 characters or fewer")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def email_format(cls, v):
+        if "@" not in v or len(v) < 3:
+            raise ValueError("Invalid email address")
+        return v.lower().strip()
 
 
 class LoginIn(BaseModel):

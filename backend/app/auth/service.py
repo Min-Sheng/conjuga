@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -80,21 +81,23 @@ def get_current_user(
 # Google OAuth helpers
 # ---------------------------------------------------------------------------
 
-def google_oauth_url() -> str:
+def google_oauth_url() -> tuple[str, str]:
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Google OAuth not configured",
         )
+    state = secrets.token_urlsafe(32)
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
-        "redirect_uri": f"{settings.FRONTEND_URL}/auth/google/callback",
+        "redirect_uri": f"{settings.BACKEND_URL}/auth/google/callback",
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
+        "state": state,
     }
     query = "&".join(f"{k}={v}" for k, v in params.items())
-    return f"https://accounts.google.com/o/oauth2/v2/auth?{query}"
+    return f"https://accounts.google.com/o/oauth2/v2/auth?{query}", state
 
 
 def exchange_google_code(code: str) -> dict:
@@ -108,20 +111,29 @@ def exchange_google_code(code: str) -> dict:
             "code": code,
             "client_id": settings.GOOGLE_CLIENT_ID,
             "client_secret": settings.GOOGLE_CLIENT_SECRET,
-            "redirect_uri": f"{settings.FRONTEND_URL}/auth/google/callback",
+            "redirect_uri": f"{settings.BACKEND_URL}/auth/google/callback",
             "grant_type": "authorization_code",
         },
         timeout=10,
     )
-    token_resp.raise_for_status()
-    access_token = token_resp.json()["access_token"]
+    try:
+        token_resp.raise_for_status()
+    except httpx.HTTPStatusError:
+        raise HTTPException(status_code=502, detail="OAuth token exchange failed")
+    try:
+        access_token = token_resp.json()["access_token"]
+    except KeyError:
+        raise HTTPException(status_code=502, detail="OAuth token exchange failed")
 
     userinfo_resp = httpx.get(
         "https://www.googleapis.com/oauth2/v3/userinfo",
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=10,
     )
-    userinfo_resp.raise_for_status()
+    try:
+        userinfo_resp.raise_for_status()
+    except httpx.HTTPStatusError:
+        raise HTTPException(status_code=502, detail="Failed to fetch Google user info")
     info = userinfo_resp.json()
 
     return {

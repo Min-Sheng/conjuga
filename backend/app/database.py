@@ -80,10 +80,5 @@ def get_db():
 
 def get_db_dep():
     """FastAPI dependency (generator) that yields a DB connection."""
-    conn = sqlite3.connect(settings.DATABASE_URL)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    try:
+    with get_db() as conn:
         yield conn
-    finally:
-        conn.close()

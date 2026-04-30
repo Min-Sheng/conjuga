@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 
 from app.auth.schemas import LoginIn, RegisterIn, TokenOut, UserOut
@@ -53,12 +53,28 @@ def login(body: LoginIn, db=Depends(get_db_dep)):
 
 @router.get("/google")
 def google_login():
-    url = google_oauth_url()
-    return RedirectResponse(url=url)
+    url, state = google_oauth_url()
+    response = RedirectResponse(url=url)
+    response.set_cookie(
+        key="oauth_state",
+        value=state,
+        httponly=True,
+        samesite="lax",
+        max_age=300,
+    )
+    return response
 
 
 @router.get("/google/callback")
-def google_callback(code: str, db=Depends(get_db_dep)):
+def google_callback(
+    code: str,
+    state: str,
+    oauth_state: str = Cookie(default=None),
+    db=Depends(get_db_dep),
+):
+    if not oauth_state or state != oauth_state:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OAuth state")
+
     info = exchange_google_code(code)
 
     # Try to find existing user by google_id or email
@@ -84,7 +100,7 @@ def google_callback(code: str, db=Depends(get_db_dep)):
         user_id = cursor.lastrowid
 
     token = create_token(user_id)
-    redirect_url = f"{settings.FRONTEND_URL}/auth/callback?token={token}"
+    redirect_url = f"{settings.FRONTEND_URL}/auth/callback#token={token}"
     return RedirectResponse(url=redirect_url)
 
 
