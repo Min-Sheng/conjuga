@@ -1,1 +1,8 @@
 verbecc>=2.0
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+passlib[bcrypt]
+httpx
+python-multipart
+python-dotenv
