@@ -3,8 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { api, setToken, clearToken, isAuthenticated } from './api/client'
 
-// Pages (stubs until Tasks G/H)
+// Pages
 import AuthPage from './pages/AuthPage'
+import SearchPage from './pages/SearchPage'
+import VerbPage from './pages/VerbPage'
 
 const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -74,9 +76,7 @@ function ProtectedRoute({ children }) {
   return children
 }
 
-// Lazy page imports — stub placeholders until G/H are implemented
-function SearchPage() { return <div style={{padding:'2rem',color:'var(--muted)'}}>搜尋頁面（即將完成）</div> }
-function VerbPage() { return <div style={{padding:'2rem',color:'var(--muted)'}}>動詞頁面</div> }
+// Stub placeholders for pages not yet implemented
 function VocabPage() { return <div style={{padding:'2rem',color:'var(--muted)'}}>單字庫</div> }
 function QuizPage() { return <div style={{padding:'2rem',color:'var(--muted)'}}>測驗</div> }
 
