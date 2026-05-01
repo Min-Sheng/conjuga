@@ -1,0 +1,32 @@
+from fastapi import APIRouter, Depends, Query
+from app.database import get_db_dep
+from app.auth.service import get_current_user
+from app.srs import service
+from app.srs.schemas import CardOut, AnswerIn, AnswerOut
+
+router = APIRouter(prefix="/quiz", tags=["quiz"])
+
+@router.get("/due", response_model=list[CardOut])
+async def get_due_cards(limit: int = Query(default=20, ge=1, le=100), user=Depends(get_current_user), db=Depends(get_db_dep)):
+    return service.get_due_cards(user["id"], db, limit)
+
+@router.post("/answer", response_model=AnswerOut)
+async def submit_answer(body: AnswerIn, user=Depends(get_current_user), db=Depends(get_db_dep)):
+    return service.process_answer(user["id"], body.card_id, body.question_type, body.user_answer, db)
+
+@router.get("/stats")
+async def get_stats(user=Depends(get_current_user), db=Depends(get_db_dep)):
+    total = db.execute("SELECT COUNT(*) as n FROM srs_cards WHERE user_id = ?", (user["id"],)).fetchone()["n"]
+    due = db.execute("SELECT COUNT(*) as n FROM srs_cards WHERE user_id = ? AND due_date <= DATE('now')", (user["id"],)).fetchone()["n"]
+    streak = db.execute(
+        """WITH daily AS (
+             SELECT DATE(reviewed_at) as day FROM quiz_log WHERE user_id = ?
+             GROUP BY DATE(reviewed_at) ORDER BY day DESC
+           )
+           SELECT COUNT(*) as streak FROM (
+             SELECT day, ROW_NUMBER() OVER (ORDER BY day DESC) as rn FROM daily
+             WHERE julianday(DATE('now')) - julianday(day) = rn - 1
+           )""",
+        (user["id"],)
+    ).fetchone()["streak"]
+    return {"total_cards": total, "due_today": due, "streak": streak}

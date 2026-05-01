@@ -22,13 +22,13 @@ app.add_middleware(
 # Router imports — commented out until each module is implemented
 from app.auth.router import router as auth_router
 from app.verbs.router import router as verbs_router
-# from app.vocabulary.router import router as vocabulary_router
-# from app.srs.router import router as srs_router
+from app.vocabulary.router import router as vocab_router
+from app.srs.router import router as srs_router
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(verbs_router)
-# app.include_router(vocabulary_router, prefix="/vocabulary", tags=["vocabulary"])
-# app.include_router(srs_router, prefix="/srs", tags=["srs"])
+app.include_router(vocab_router)
+app.include_router(srs_router)
 
 
 @app.on_event("startup")
