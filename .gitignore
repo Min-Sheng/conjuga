@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.db
+*.sqlite3
+*.log
+.env
+.env.local
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# OS
+.DS_Store
+*.DS_Store
+
+# Superpowers brainstorm
+.superpowers/
+
+# Misc
+*.egg-info/
+.pytest_cache/
