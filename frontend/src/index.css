@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #F5F5F7;
+  --paper: #FFFFFF;
+  --ink: #1D1D1F;
+  --ink-2: #3A3A3C;
+  --muted: #86868B;
+  --accent: #0071E3;
+  --accent-dark: #0077ED;
+  --danger: #FF3B30;
+  --success: #34C759;
+  --border: #D2D2D7;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { font-size: 16px; }
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
+}
+body { min-height: 100vh; }
+
+/* App shell — phone-width, centered on desktop */
+#root {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--bg);
+  position: relative;
+}
