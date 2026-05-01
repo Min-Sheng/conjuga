@@ -19,12 +19,13 @@ async def get_stats(user=Depends(get_current_user), db=Depends(get_db_dep)):
     total = db.execute("SELECT COUNT(*) as n FROM srs_cards WHERE user_id = ?", (user["id"],)).fetchone()["n"]
     due = db.execute("SELECT COUNT(*) as n FROM srs_cards WHERE user_id = ? AND due_date <= DATE('now')", (user["id"],)).fetchone()["n"]
     streak = db.execute(
-        """WITH daily AS (
-             SELECT DATE(reviewed_at) as day FROM quiz_log WHERE user_id = ?
-             GROUP BY DATE(reviewed_at) ORDER BY day DESC
-           )
-           SELECT COUNT(*) as streak FROM (
-             SELECT day, ROW_NUMBER() OVER (ORDER BY day DESC) as rn FROM daily
+        """SELECT COUNT(*) as streak FROM (
+             SELECT day, rn FROM (
+               SELECT DATE(reviewed_at) as day,
+                      ROW_NUMBER() OVER (ORDER BY DATE(reviewed_at) DESC) as rn
+               FROM quiz_log WHERE user_id = ?
+               GROUP BY DATE(reviewed_at)
+             )
              WHERE julianday(DATE('now')) - julianday(day) = rn - 1
            )""",
         (user["id"],)

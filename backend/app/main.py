@@ -4,7 +4,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.verbs import lookup_index
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +34,6 @@ app.include_router(srs_router)
 async def startup_event() -> None:
     init_db()
     logger.info("Database initialized")
-    # Build verb lookup index in background
-    import asyncio
-    asyncio.create_task(asyncio.to_thread(lookup_index.build_index))
 
 
 @app.get("/health")
