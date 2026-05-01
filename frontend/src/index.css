@@ -35,3 +35,12 @@ body { min-height: 100vh; }
   background: var(--bg);
   position: relative;
 }
+
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--muted);
+  font-size: 15px;
+}
