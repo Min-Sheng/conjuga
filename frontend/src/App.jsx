@@ -7,6 +7,9 @@ import { api, setToken, clearToken, isAuthenticated } from './api/client'
 import AuthPage from './pages/AuthPage'
 import SearchPage from './pages/SearchPage'
 import VerbPage from './pages/VerbPage'
+import VocabPage from './pages/VocabPage'
+import QuizPage from './pages/QuizPage'
+import NavBar from './components/NavBar'
 
 const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -73,12 +76,13 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="loading-screen">載入中…</div>
   if (!user) return <Navigate to="/auth" replace />
-  return children
+  return (
+    <>
+      {children}
+      <NavBar />
+    </>
+  )
 }
-
-// Stub placeholders for pages not yet implemented
-function VocabPage() { return <div style={{padding:'2rem',color:'var(--muted)'}}>單字庫</div> }
-function QuizPage() { return <div style={{padding:'2rem',color:'var(--muted)'}}>測驗</div> }
 
 export default function App() {
   return (
