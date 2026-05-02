@@ -1,13 +1,32 @@
 from app.verbs.service import get_conjugations
 
 DEFAULT_TENSES = [
+    # 直說式
     ("indicativo", "presente"),
     ("indicativo", "pretérito-perfecto-simple"),
     ("indicativo", "pretérito-imperfecto"),
+    ("indicativo", "pretérito-perfecto-compuesto"),
+    ("indicativo", "pretérito-pluscuamperfecto"),
     ("indicativo", "futuro"),
+    ("indicativo", "futuro-perfecto"),
+    # 條件式
     ("condicional", "presente"),
+    ("condicional", "perfecto"),
+    # 虛擬式
     ("subjuntivo", "presente"),
+    ("subjuntivo", "pretérito-imperfecto-1"),
+    ("subjuntivo", "pretérito-imperfecto-2"),
+    ("subjuntivo", "pretérito-perfecto"),
+    ("subjuntivo", "pretérito-pluscuamperfecto-1"),
+    ("subjuntivo", "pretérito-pluscuamperfecto-2"),
+    ("subjuntivo", "futuro"),
+    ("subjuntivo", "futuro-perfecto"),
+    # 命令式
     ("imperativo", "afirmativo"),
+    ("imperativo", "negativo"),
+    # 非人稱
+    ("gerundio", "gerundio"),
+    ("participo", "participo"),
 ]
 
 def add_verb(user_id: int, infinitive: str, db) -> dict:

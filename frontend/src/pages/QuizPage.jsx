@@ -3,27 +3,46 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 
-// Available tenses for selection (must match DEFAULT_TENSES in backend)
+// d = default on; synced with DEFAULT_TENSES in backend/vocabulary/service.py
 const SELECTABLE_TENSES = [
-  { mood: 'indicativo',  tense: 'presente',                  label: '直說式 · 簡單現在式' },
-  { mood: 'indicativo',  tense: 'pretérito-perfecto-simple',  label: '直說式 · 簡單過去式' },
-  { mood: 'indicativo',  tense: 'pretérito-imperfecto',       label: '直說式 · 過去未完成式' },
-  { mood: 'indicativo',  tense: 'futuro',                     label: '直說式 · 簡單未來式' },
-  { mood: 'condicional', tense: 'presente',                   label: '條件式 · 簡單條件式' },
-  { mood: 'subjuntivo',  tense: 'presente',                   label: '虛擬式 · 虛擬現在式' },
-  { mood: 'imperativo',  tense: 'afirmativo',                 label: '命令式 · 肯定命令式' },
+  // 直說式
+  { mood: 'indicativo',  tense: 'presente',                     label: '簡單現在式',              d: true  },
+  { mood: 'indicativo',  tense: 'pretérito-perfecto-simple',    label: '簡單過去式',              d: true  },
+  { mood: 'indicativo',  tense: 'pretérito-imperfecto',         label: '過去未完成式',            d: true  },
+  { mood: 'indicativo',  tense: 'pretérito-perfecto-compuesto', label: '現在完成式',              d: true  },
+  { mood: 'indicativo',  tense: 'pretérito-pluscuamperfecto',   label: '過去完成式',              d: true  },
+  { mood: 'indicativo',  tense: 'futuro',                       label: '簡單未來式',              d: true  },
+  { mood: 'indicativo',  tense: 'futuro-perfecto',              label: '未來完成式',              d: false },
+  // 條件式
+  { mood: 'condicional', tense: 'presente',                     label: '簡單條件式',              d: true  },
+  { mood: 'condicional', tense: 'perfecto',                     label: '條件完成式',              d: false },
+  // 虛擬式
+  { mood: 'subjuntivo',  tense: 'presente',                     label: '虛擬現在式',              d: true  },
+  { mood: 'subjuntivo',  tense: 'pretérito-imperfecto-1',       label: '虛擬過去未完成式（-ra）', d: true  },
+  { mood: 'subjuntivo',  tense: 'pretérito-imperfecto-2',       label: '虛擬過去未完成式（-se）', d: false },
+  { mood: 'subjuntivo',  tense: 'pretérito-perfecto',           label: '虛擬現在完成式',          d: false },
+  { mood: 'subjuntivo',  tense: 'pretérito-pluscuamperfecto-1', label: '虛擬過去完成式（-ra）',   d: false },
+  { mood: 'subjuntivo',  tense: 'pretérito-pluscuamperfecto-2', label: '虛擬過去完成式（-se）',   d: false },
+  { mood: 'subjuntivo',  tense: 'futuro',                       label: '虛擬未來式',              d: false },
+  { mood: 'subjuntivo',  tense: 'futuro-perfecto',              label: '虛擬未來完成式',          d: false },
+  // 命令式
+  { mood: 'imperativo',  tense: 'afirmativo',                   label: '肯定命令式',              d: true  },
+  { mood: 'imperativo',  tense: 'negativo',                     label: '否定命令式',              d: true  },
+  // 非人稱
+  { mood: 'gerundio',    tense: 'gerundio',                     label: '副動詞',                  d: false },
+  { mood: 'participo',   tense: 'participo',                    label: '分詞',                    d: false },
 ]
 
-const STORAGE_KEY = 'verbo_quiz_tenses'
+const STORAGE_KEY = 'verbo_quiz_tenses_v2'
 const PER_TENSE_KEY = 'verbo_quiz_per_tense'
-const ALL_KEYS = SELECTABLE_TENSES.map(t => `${t.mood}:${t.tense}`)
+const DEFAULT_KEYS = SELECTABLE_TENSES.filter(t => t.d).map(t => `${t.mood}:${t.tense}`)
 
 function loadSelection() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
     if (Array.isArray(saved) && saved.length > 0) return saved
   } catch {}
-  return ALL_KEYS
+  return DEFAULT_KEYS
 }
 
 function loadPerTense() {
@@ -31,9 +50,10 @@ function loadPerTense() {
   return isNaN(v) ? 5 : Math.max(1, Math.min(20, v))
 }
 
-function getMoodLabel(mood) {
-  const map = { indicativo: '直說式', condicional: '條件式', subjuntivo: '虛擬式', imperativo: '命令式' }
-  return map[mood] || mood
+const MOOD_GROUP_LABEL = {
+  indicativo: '直說式', condicional: '條件式',
+  subjuntivo: '虛擬式', imperativo: '命令式',
+  gerundio: '非人稱', participo: '非人稱',
 }
 
 // ─── Tense Selection Screen ───────────────────────────────────────────────
@@ -55,57 +75,45 @@ function TenseSelector({ onStart }) {
     onStart(selected, perTense)
   }
 
-  const groupedByMood = SELECTABLE_TENSES.reduce((acc, t) => {
-    if (!acc[t.mood]) acc[t.mood] = []
-    acc[t.mood].push(t)
-    return acc
-  }, {})
+  // Group by mood, preserving order
+  const groups = []
+  const seen = {}
+  for (const t of SELECTABLE_TENSES) {
+    const g = MOOD_GROUP_LABEL[t.mood] || t.mood
+    if (!seen[g]) { seen[g] = true; groups.push({ label: g, items: [] }) }
+    groups[groups.length - 1].items.push(t)
+  }
 
   return (
     <div style={{ minHeight: '100vh', paddingBottom: 'calc(72px + var(--safe-bot))' }}>
       <div style={{ background: 'var(--accent)', padding: 'calc(var(--safe-top) + 16px) 20px 20px' }}>
         <div style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>測驗設定</div>
-        <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 }}>
-          選擇要練習的時態
-        </div>
+        <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 }}>選擇要練習的時態</div>
       </div>
 
       <div style={{ padding: '16px' }}>
-        {Object.entries(groupedByMood).map(([mood, tenses]) => (
-          <div key={mood} style={{ marginBottom: 16 }}>
+        {groups.map(({ label, items }) => (
+          <div key={label} style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
-              {getMoodLabel(mood)}
+              {label}
             </div>
             <div style={{ background: 'var(--paper)', borderRadius: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.07)', overflow: 'hidden' }}>
-              {tenses.map((t, i) => {
+              {items.map((t, i) => {
                 const key = `${t.mood}:${t.tense}`
                 const on = selected.includes(key)
                 return (
-                  <button
-                    key={key}
-                    onClick={() => toggle(key)}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '14px 16px', background: on ? '#EBF5FF' : 'var(--paper)', border: 'none', cursor: 'pointer',
-                      borderBottom: i < tenses.length - 1 ? '1px solid var(--bg)' : 'none',
-                      transition: 'background 0.12s',
-                    }}
-                  >
-                    <span style={{ fontSize: 15, color: on ? 'var(--accent)' : 'var(--ink)', fontWeight: on ? 600 : 400 }}>
-                      {t.tense === 'presente' ? (mood === 'indicativo' ? '簡單現在式' :
-                        mood === 'condicional' ? '簡單條件式' : '虛擬現在式') :
-                       t.tense === 'pretérito-perfecto-simple' ? '簡單過去式' :
-                       t.tense === 'pretérito-imperfecto' ? '過去未完成式' :
-                       t.tense === 'futuro' ? '簡單未來式' :
-                       t.tense === 'afirmativo' ? '肯定命令式' : t.tense}
-                    </span>
-                    <div style={{
-                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                      background: on ? 'var(--accent)' : 'var(--bg)',
-                      border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.12s',
-                    }}>
+                  <button key={key} onClick={() => toggle(key)} style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '13px 16px', background: on ? '#EBF5FF' : 'var(--paper)', border: 'none', cursor: 'pointer',
+                    borderBottom: i < items.length - 1 ? '1px solid var(--bg)' : 'none', transition: 'background 0.12s',
+                  }}>
+                    <div style={{ textAlign: 'left' }}>
+                      <span style={{ fontSize: 14, color: on ? 'var(--accent)' : 'var(--ink)', fontWeight: on ? 600 : 400 }}>
+                        {t.label}
+                      </span>
+                      {!t.d && <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--muted)', background: 'var(--bg)', borderRadius: 4, padding: '1px 5px' }}>少用</span>}
+                    </div>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, background: on ? 'var(--accent)' : 'var(--bg)', border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.12s' }}>
                       {on && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </div>
                   </button>
@@ -119,34 +127,21 @@ function TenseSelector({ onStart }) {
           已選 {selected.length} / {SELECTABLE_TENSES.length} 個時態
         </div>
 
-        {/* Per-tense question count */}
+        {/* Per-tense count slider */}
         <div style={{ background: 'var(--paper)', borderRadius: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.07)', padding: '16px 20px', marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>每個時態題數</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)', minWidth: 28, textAlign: 'right' }}>{perTense}</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)' }}>{perTense}</span>
           </div>
-          <input
-            type="range" min="1" max="20" value={perTense}
-            onChange={(e) => setPerTense(Number(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--accent)' }}
-          />
+          <input type="range" min="1" max="20" value={perTense} onChange={(e) => setPerTense(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--accent)' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
             <span>1 題</span>
-            <span style={{ color: 'var(--muted)', fontSize: 12 }}>
-              預計共 <strong style={{ color: 'var(--ink)' }}>{selected.length * perTense}</strong> 題
-            </span>
+            <span>預計共 <strong style={{ color: 'var(--ink)' }}>{selected.length * perTense}</strong> 題</span>
             <span>20 題</span>
           </div>
         </div>
 
-        <button
-          onClick={handleStart}
-          style={{
-            width: '100%', padding: '14px',
-            background: 'var(--accent)', color: '#fff',
-            border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer',
-          }}
-        >
+        <button onClick={handleStart} style={{ width: '100%', padding: '14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
           開始測驗 →
         </button>
       </div>
@@ -156,14 +151,16 @@ function TenseSelector({ onStart }) {
 
 // ─── Quiz Session ─────────────────────────────────────────────────────────
 const MOOD_LABELS = {
-  'indicativo': '直說式', 'subjuntivo': '虛擬式',
-  'imperativo': '命令式', 'condicional': '條件式',
+  indicativo: '直說式', subjuntivo: '虛擬式', imperativo: '命令式',
+  condicional: '條件式', gerundio: '副動詞', participo: '分詞',
 }
 const TENSE_LABELS = {
-  indicativo: { 'presente': '簡單現在式', 'pretérito-perfecto-compuesto': '現在完成式', 'pretérito-perfecto-simple': '簡單過去式', 'pretérito-imperfecto': '過去未完成式', 'pretérito-pluscuamperfecto': '過去完成式', 'futuro': '簡單未來式', 'futuro-perfecto': '未來完成式' },
-  condicional: { 'presente': '簡單條件式', 'perfecto': '條件完成式' },
-  subjuntivo: { 'presente': '虛擬現在式', 'pretérito-imperfecto-1': '虛擬過去未完成式（-ra）', 'pretérito-imperfecto-2': '虛擬過去未完成式（-se）', 'pretérito-perfecto': '虛擬現在完成式', 'pretérito-pluscuamperfecto-1': '虛擬過去完成式（-ra）', 'pretérito-pluscuamperfecto-2': '虛擬過去完成式（-se）', 'futuro': '虛擬未來式', 'futuro-perfecto': '虛擬未來完成式' },
-  imperativo: { 'afirmativo': '肯定命令式', 'negativo': '否定命令式' },
+  indicativo: { presente: '簡單現在式', 'pretérito-perfecto-simple': '簡單過去式', 'pretérito-imperfecto': '過去未完成式', 'pretérito-perfecto-compuesto': '現在完成式', 'pretérito-pluscuamperfecto': '過去完成式', futuro: '簡單未來式', 'futuro-perfecto': '未來完成式' },
+  condicional: { presente: '簡單條件式', perfecto: '條件完成式' },
+  subjuntivo:  { presente: '虛擬現在式', 'pretérito-imperfecto-1': '虛擬過去未完成式（-ra）', 'pretérito-imperfecto-2': '虛擬過去未完成式（-se）', 'pretérito-perfecto': '虛擬現在完成式', 'pretérito-pluscuamperfecto-1': '虛擬過去完成式（-ra）', 'pretérito-pluscuamperfecto-2': '虛擬過去完成式（-se）', futuro: '虛擬未來式', 'futuro-perfecto': '虛擬未來完成式' },
+  imperativo:  { afirmativo: '肯定命令式', negativo: '否定命令式' },
+  gerundio:    { gerundio: '副動詞' },
+  participo:   { participo: '分詞' },
 }
 function getTenseLabel(mood, tense) { return TENSE_LABELS[mood]?.[tense] ?? tense }
 
@@ -196,6 +193,7 @@ function QuizSession({ selectedTenses, perTense, onReset }) {
 
   const card = cards?.[index]
   const questionType = card ? (card.repetitions < 3 ? 'multiple_choice' : 'fill_in') : null
+  const isImpersonal = card && !card.person  // gerundio / participo
 
   const choices = useMemo(() => {
     if (!card || questionType !== 'multiple_choice') return []
@@ -222,12 +220,8 @@ function QuizSession({ selectedTenses, perTense, onReset }) {
             {done ? `完成 ${cards?.length || 0} 張卡片` : '可以換選其他時態或去單字庫加入更多動詞'}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={onReset} style={{ padding: '11px 20px', background: 'var(--paper)', color: 'var(--ink)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-              重新選擇時態
-            </button>
-            <button onClick={() => navigate('/vocab')} style={{ padding: '11px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-              前往單字庫
-            </button>
+            <button onClick={onReset} style={{ padding: '11px 20px', background: 'var(--paper)', color: 'var(--ink)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>重新選擇時態</button>
+            <button onClick={() => navigate('/vocab')} style={{ padding: '11px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>前往單字庫</button>
           </div>
         </div>
       </div>
@@ -239,13 +233,11 @@ function QuizSession({ selectedTenses, perTense, onReset }) {
     setSelectedChoice(choice)
     mutation.mutate({ card_id: card.id, question_type: 'multiple_choice', user_answer: choice })
   }
-
   const handleFillSubmit = (e) => {
     e.preventDefault()
     if (result || mutation.isPending || !fillAnswer.trim()) return
     mutation.mutate({ card_id: card.id, question_type: 'fill_in', user_answer: fillAnswer.trim() })
   }
-
   const handleNext = () => {
     if (index < cards.length - 1) { setIndex(i => i + 1); setResult(null); setFillAnswer(''); setSelectedChoice(null) }
     else setDone(true)
@@ -255,9 +247,7 @@ function QuizSession({ selectedTenses, perTense, onReset }) {
     <div style={{ minHeight: '100vh', paddingBottom: 'calc(72px + var(--safe-bot))' }}>
       <div style={{ background: 'var(--accent)', padding: 'calc(var(--safe-top) + 16px) 20px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={onReset} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 13 }}>
-            ‹ 時態
-          </button>
+          <button onClick={onReset} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 13 }}>‹ 時態</button>
           <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 600 }}>{index + 1} / {cards.length}</div>
         </div>
         <div style={{ marginTop: 10, height: 4, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }}>
@@ -266,6 +256,7 @@ function QuizSession({ selectedTenses, perTense, onReset }) {
       </div>
 
       <div style={{ padding: '16px' }}>
+        {/* Question prompt */}
         <div style={{ background: 'var(--paper)', borderRadius: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.07)', padding: '20px', marginBottom: 16 }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.04em', marginBottom: 8 }}>
             {MOOD_LABELS[card.mood] || card.mood} · {getTenseLabel(card.mood, card.tense)}
@@ -274,14 +265,18 @@ function QuizSession({ selectedTenses, perTense, onReset }) {
             {card.verb_infinitive}
           </div>
           <div style={{ fontSize: 15, color: 'var(--ink-2, #3A3A3C)' }}>
-            <span style={{ fontWeight: 700 }}>{card.person}</span> 的變化形？
+            {isImpersonal
+              ? <span>{getTenseLabel(card.mood, card.tense)}形式是？</span>
+              : <><span style={{ fontWeight: 700 }}>{card.person}</span> 的變化形？</>
+            }
           </div>
         </div>
 
         {questionType === 'multiple_choice' && !result && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {choices.map((choice) => (
-              <button key={choice} onClick={() => handleMultipleChoice(choice)} disabled={mutation.isPending} style={{ padding: '18px 12px', border: `2px solid ${selectedChoice === choice ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 12, background: selectedChoice === choice ? '#EBF5FF' : 'var(--paper)', fontSize: 20, fontStyle: 'italic', fontFamily: 'Georgia, serif', color: 'var(--ink)', cursor: 'pointer', transition: 'all 0.12s' }}>
+              <button key={choice} onClick={() => handleMultipleChoice(choice)} disabled={mutation.isPending}
+                style={{ padding: '18px 12px', border: `2px solid ${selectedChoice === choice ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 12, background: selectedChoice === choice ? '#EBF5FF' : 'var(--paper)', fontSize: 20, fontStyle: 'italic', fontFamily: 'Georgia, serif', color: 'var(--ink)', cursor: 'pointer', transition: 'all 0.12s' }}>
                 {choice}
               </button>
             ))}
@@ -332,7 +327,7 @@ function QuizSession({ selectedTenses, perTense, onReset }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────
 export default function QuizPage() {
-  const [session, setSession] = useState(null) // { tenses, perTense }
+  const [session, setSession] = useState(null)
 
   if (!session) {
     return <TenseSelector onStart={(tenses, perTense) => setSession({ tenses, perTense })} />
