@@ -49,6 +49,15 @@ def remove_verb(user_id: int, infinitive: str, db):
     db.execute("DELETE FROM srs_cards WHERE user_id = ? AND verb_infinitive = ?", (user_id, infinitive))
     db.commit()
 
+def _tense_status(ease: float, reps: int) -> str:
+    if reps == 0:
+        return 'new'
+    if ease < 2.0:
+        return 'struggling'
+    if reps >= 3 and ease >= 2.3:
+        return 'mastered'
+    return 'learning'
+
 def list_verbs(user_id: int, db) -> list:
     rows = db.execute(
         """SELECT v.verb_infinitive, v.added_at, v.look_up_count,
@@ -60,4 +69,40 @@ def list_verbs(user_id: int, db) -> list:
            GROUP BY v.verb_infinitive ORDER BY v.added_at DESC""",
         (user_id,)
     ).fetchall()
-    return [dict(r) for r in rows]
+
+    verbs = [dict(r) for r in rows]
+
+    # Attach per-tense mastery for each verb
+    for verb in verbs:
+        tense_rows = db.execute(
+            """SELECT mood, tense,
+                      ROUND(AVG(ease_factor), 2) as ease,
+                      MAX(repetitions) as reps,
+                      SUM(CASE WHEN due_date <= DATE('now') THEN 1 ELSE 0 END) as due
+               FROM srs_cards
+               WHERE user_id = ? AND verb_infinitive = ?
+               GROUP BY mood, tense""",
+            (user_id, verb['verb_infinitive'])
+        ).fetchall()
+
+        # Index by (mood, tense) for O(1) lookup
+        card_map = {(r['mood'], r['tense']): r for r in tense_rows}
+
+        tense_mastery = []
+        for mood, tense in DEFAULT_TENSES:
+            r = card_map.get((mood, tense))
+            if r:
+                tense_mastery.append({
+                    'mood': mood,
+                    'tense': tense,
+                    'status': _tense_status(r['ease'], r['reps']),
+                    'ease_factor': r['ease'],
+                    'repetitions': r['reps'],
+                    'due': r['due'],
+                })
+            else:
+                tense_mastery.append({'mood': mood, 'tense': tense, 'status': 'new', 'ease_factor': 2.5, 'repetitions': 0, 'due': 0})
+
+        verb['tense_mastery'] = tense_mastery
+
+    return verbs

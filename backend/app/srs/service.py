@@ -81,7 +81,8 @@ def get_due_cards(user_id: int, db, limit: int = 20, mood_tenses: list = None) -
         if clauses:
             base += " AND (" + " OR ".join(clauses) + ")"
 
-    base += " ORDER BY due_date ASC LIMIT ?"
+    # Prioritize: lowest ease_factor first (most struggling), then most overdue
+    base += " ORDER BY ease_factor ASC, due_date ASC LIMIT ?"
     params.append(limit)
     rows = db.execute(base, params).fetchall()
     return [dict(r) for r in rows]
