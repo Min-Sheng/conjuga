@@ -64,14 +64,26 @@ def generate_distractors(card: dict, db) -> list:
     random.shuffle(distractors)
     return distractors[:3]
 
-def get_due_cards(user_id: int, db, limit: int = 20) -> list:
-    rows = db.execute(
-        """SELECT id, user_id, verb_infinitive, mood, tense, person, correct_form,
-                  repetitions, ease_factor, interval_days, due_date
-           FROM srs_cards WHERE user_id = ? AND due_date <= DATE('now')
-           ORDER BY due_date ASC LIMIT ?""",
-        (user_id, limit)
-    ).fetchall()
+def get_due_cards(user_id: int, db, limit: int = 20, mood_tenses: list = None) -> list:
+    base = """SELECT id, user_id, verb_infinitive, mood, tense, person, correct_form,
+                     repetitions, ease_factor, interval_days, due_date
+              FROM srs_cards WHERE user_id = ? AND due_date <= DATE('now')"""
+    params = [user_id]
+
+    if mood_tenses:
+        # mood_tenses is a list of "mood:tense" strings
+        clauses = []
+        for mt in mood_tenses:
+            if ":" in mt:
+                m, t = mt.split(":", 1)
+                clauses.append("(mood = ? AND tense = ?)")
+                params += [m, t]
+        if clauses:
+            base += " AND (" + " OR ".join(clauses) + ")"
+
+    base += " ORDER BY due_date ASC LIMIT ?"
+    params.append(limit)
+    rows = db.execute(base, params).fetchall()
     return [dict(r) for r in rows]
 
 def process_answer(user_id: int, card_id: int, question_type: str, user_answer: str, db) -> dict:

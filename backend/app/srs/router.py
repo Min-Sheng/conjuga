@@ -7,8 +7,14 @@ from app.srs.schemas import CardOut, AnswerIn, AnswerOut
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
 @router.get("/due", response_model=list[CardOut])
-async def get_due_cards(limit: int = Query(default=20, ge=1, le=100), user=Depends(get_current_user), db=Depends(get_db_dep)):
-    return service.get_due_cards(user["id"], db, limit)
+async def get_due_cards(
+    limit: int = Query(default=20, ge=1, le=100),
+    filter: str = Query(default="", description="Comma-separated mood:tense pairs, e.g. indicativo:presente,subjuntivo:presente"),
+    user=Depends(get_current_user),
+    db=Depends(get_db_dep),
+):
+    mood_tenses = [f.strip() for f in filter.split(",") if f.strip()] if filter else None
+    return service.get_due_cards(user["id"], db, limit, mood_tenses)
 
 @router.post("/answer", response_model=AnswerOut)
 async def submit_answer(body: AnswerIn, user=Depends(get_current_user), db=Depends(get_db_dep)):

@@ -4,8 +4,8 @@ DEFAULT_TENSES = [
     ("indicativo", "presente"),
     ("indicativo", "pretérito-perfecto-simple"),
     ("indicativo", "pretérito-imperfecto"),
-    ("indicativo", "futuro-indicativo"),
-    ("indicativo", "condicional"),
+    ("indicativo", "futuro"),
+    ("condicional", "presente"),
     ("subjuntivo", "presente"),
     ("imperativo", "afirmativo"),
 ]
