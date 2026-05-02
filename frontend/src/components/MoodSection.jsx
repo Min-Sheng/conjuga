@@ -48,9 +48,46 @@ const PERSON_LABELS = {
   'ustedes': 'ustedes',
 }
 
+const TENSE_ORDER = {
+  indicativo: [
+    'presente',
+    'pretérito-perfecto-simple',
+    'pretérito-imperfecto',
+    'pretérito-perfecto-compuesto',
+    'futuro',
+    'pretérito-pluscuamperfecto',
+    'futuro-perfecto',
+    'pretérito-anterior',
+  ],
+  condicional: ['presente', 'perfecto'],
+  subjuntivo: [
+    'presente',
+    'pretérito-imperfecto-1',
+    'pretérito-imperfecto-2',
+    'pretérito-perfecto',
+    'pretérito-pluscuamperfecto-1',
+    'pretérito-pluscuamperfecto-2',
+    'futuro',
+    'futuro-perfecto',
+  ],
+  imperativo: ['afirmativo', 'negativo'],
+}
+
+function sortTenses(mood, tenses) {
+  const order = TENSE_ORDER[mood] || []
+  return Object.entries(tenses).sort(([a], [b]) => {
+    const ia = order.indexOf(a)
+    const ib = order.indexOf(b)
+    if (ia === -1 && ib === -1) return a.localeCompare(b)
+    if (ia === -1) return 1
+    if (ib === -1) return -1
+    return ia - ib
+  })
+}
+
 export default function MoodSection({ mood, tenses, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen)
-  const tenseList = Object.entries(tenses)
+  const tenseList = sortTenses(mood, tenses)
 
   return (
     <div style={{ marginBottom: 12 }}>

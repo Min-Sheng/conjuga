@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import MoodSection from '../components/MoodSection'
 
-const PRIORITY_MOODS = ['indicativo', 'subjuntivo', 'imperativo']
+const MOOD_ORDER = ['indicativo', 'condicional', 'subjuntivo', 'imperativo', 'infinitivo', 'gerundio', 'participo']
 
 export default function VerbPage() {
   const { infinitive: rawInfinitive } = useParams()
@@ -105,8 +105,7 @@ export default function VerbPage() {
 
           {/* Conjugation sections */}
           <div style={{ padding: '16px' }}>
-            {/* Priority moods first, then others */}
-            {[...PRIORITY_MOODS, ...Object.keys(data.conjugations).filter(m => !PRIORITY_MOODS.includes(m))]
+            {[...MOOD_ORDER, ...Object.keys(data.conjugations).filter(m => !MOOD_ORDER.includes(m))]
               .filter(m => data.conjugations[m])
               .map((mood, i) => (
                 <MoodSection
