@@ -10,28 +10,43 @@ const MOOD_LABELS = {
   'participo': '分詞 Participio',
 }
 
+// Mood-aware tense labels (same tense key has different names in different moods)
 const TENSE_LABELS = {
-  'presente': '現在式',
-  'pretérito-imperfecto': '未完成過去式',
-  'pretérito-perfecto-simple': '簡單完成式',
-  'futuro': '未來式',
-  'futuro-indicativo': '未來式',
-  'futuro-perfecto': '未來完成式',
-  'condicional': '條件式',
-  'perfecto': '完成式',
-  'pretérito-perfecto': '完成式',
-  'pretérito-perfecto-compuesto': '複合完成式',
-  'pretérito-anterior': '先過去式',
-  'pretérito-pluscuamperfecto': '過去完成式',
-  'pretérito-pluscuamperfecto-1': '過去完成式 (-ra)',
-  'pretérito-pluscuamperfecto-2': '過去完成式 (-se)',
-  'pretérito-imperfecto-1': '虛擬未完成式 (-ra)',
-  'pretérito-imperfecto-2': '虛擬未完成式 (-se)',
-  'afirmativo': '肯定命令',
-  'negativo': '否定命令',
-  'gerundio': '副動詞',
-  'infinitivo': '不定式',
-  'participo': '分詞',
+  indicativo: {
+    'presente':                     '簡單現在式',
+    'pretérito-perfecto-compuesto': '現在完成式',
+    'pretérito-perfecto-simple':    '簡單過去式',
+    'pretérito-imperfecto':         '過去未完成式',
+    'pretérito-pluscuamperfecto':   '過去完成式',
+    'pretérito-anterior':           '先過去式',
+    'futuro':                       '簡單未來式',
+    'futuro-perfecto':              '未來完成式',
+  },
+  condicional: {
+    'presente': '簡單條件式',
+    'perfecto':  '條件完成式',
+  },
+  subjuntivo: {
+    'presente':                      '虛擬現在式',
+    'pretérito-imperfecto-1':        '虛擬過去未完成式（-ra）',
+    'pretérito-imperfecto-2':        '虛擬過去未完成式（-se）',
+    'pretérito-perfecto':            '虛擬現在完成式',
+    'pretérito-pluscuamperfecto-1':  '虛擬過去完成式（-ra）',
+    'pretérito-pluscuamperfecto-2':  '虛擬過去完成式（-se）',
+    'futuro':                        '虛擬未來式',
+    'futuro-perfecto':               '虛擬未來完成式',
+  },
+  imperativo: {
+    'afirmativo': '肯定命令式',
+    'negativo':   '否定命令式',
+  },
+  infinitivo: { 'infinitivo': '不定式' },
+  gerundio:   { 'gerundio':   '副動詞' },
+  participo:  { 'participo':  '分詞' },
+}
+
+function getTenseLabel(mood, tense) {
+  return TENSE_LABELS[mood]?.[tense] ?? tense
 }
 
 const PERSON_LABELS = {
@@ -49,26 +64,30 @@ const PERSON_LABELS = {
 }
 
 const TENSE_ORDER = {
+  // 現在 → 過去 → 未來（參照 islalavida.com 學習者友善順序）
   indicativo: [
-    'presente',
-    'pretérito-perfecto-simple',
-    'pretérito-imperfecto',
-    'pretérito-perfecto-compuesto',
-    'futuro',
-    'pretérito-pluscuamperfecto',
-    'futuro-perfecto',
-    'pretérito-anterior',
+    'presente',                    // 現在式
+    'pretérito-perfecto-compuesto',// 現在完成式
+    'pretérito-perfecto-simple',   // 簡單過去式
+    'pretérito-imperfecto',        // 未完成過去式
+    'pretérito-pluscuamperfecto',  // 過去完成式
+    'pretérito-anterior',          // 先過去式（文學用）
+    'futuro',                      // 未來式
+    'futuro-perfecto',             // 未來完成式
   ],
-  condicional: ['presente', 'perfecto'],
+  condicional: [
+    'presente',  // 條件式現在
+    'perfecto',  // 條件式完成
+  ],
   subjuntivo: [
-    'presente',
-    'pretérito-imperfecto-1',
-    'pretérito-imperfecto-2',
-    'pretérito-perfecto',
-    'pretérito-pluscuamperfecto-1',
-    'pretérito-pluscuamperfecto-2',
-    'futuro',
-    'futuro-perfecto',
+    'presente',                     // 虛擬現在式
+    'pretérito-imperfecto-1',       // 虛擬未完成式 -ra
+    'pretérito-imperfecto-2',       // 虛擬未完成式 -se
+    'pretérito-perfecto',           // 虛擬完成式
+    'pretérito-pluscuamperfecto-1', // 虛擬過去完成式 -ra
+    'pretérito-pluscuamperfecto-2', // 虛擬過去完成式 -se
+    'futuro',                       // 虛擬未來式（罕用）
+    'futuro-perfecto',              // 虛擬未來完成式（罕用）
   ],
   imperativo: ['afirmativo', 'negativo'],
 }
@@ -119,6 +138,7 @@ export default function MoodSection({ mood, tenses, defaultOpen = false }) {
             <TenseGroup
               key={tense}
               tense={tense}
+              label={getTenseLabel(mood, tense)}
               persons={persons}
               isLast={ti === tenseList.length - 1}
             />
@@ -129,7 +149,7 @@ export default function MoodSection({ mood, tenses, defaultOpen = false }) {
   )
 }
 
-function TenseGroup({ tense, persons, isLast }) {
+function TenseGroup({ tense, label, persons, isLast }) {
   const [open, setOpen] = useState(false)
   const preview = persons.slice(0, 2).map(p => p.form).join(', ')
 
@@ -144,7 +164,7 @@ function TenseGroup({ tense, persons, isLast }) {
         }}
       >
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', minWidth: 120, textAlign: 'left' }}>
-          {TENSE_LABELS[tense] || tense}
+          {label}
         </span>
         {!open && (
           <span style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
