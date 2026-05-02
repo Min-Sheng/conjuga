@@ -61,8 +61,8 @@ export const api = {
   deleteVocab: (infinitive) => request('DELETE', `/vocab/${infinitive}`),
 
   // Quiz
-  getDue: (limit = 20, moodTenses = []) => {
-    const params = new URLSearchParams({ limit })
+  getDue: (moodTenses = [], perTense = 5) => {
+    const params = new URLSearchParams({ limit: 500, per_tense: perTense })
     if (moodTenses.length) params.set('filter', moodTenses.join(','))
     return request('GET', `/quiz/due?${params}`)
   },

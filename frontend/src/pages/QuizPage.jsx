@@ -15,6 +15,7 @@ const SELECTABLE_TENSES = [
 ]
 
 const STORAGE_KEY = 'verbo_quiz_tenses'
+const PER_TENSE_KEY = 'verbo_quiz_per_tense'
 const ALL_KEYS = SELECTABLE_TENSES.map(t => `${t.mood}:${t.tense}`)
 
 function loadSelection() {
@@ -22,7 +23,12 @@ function loadSelection() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
     if (Array.isArray(saved) && saved.length > 0) return saved
   } catch {}
-  return ALL_KEYS // default: all selected
+  return ALL_KEYS
+}
+
+function loadPerTense() {
+  const v = parseInt(localStorage.getItem(PER_TENSE_KEY) || '5', 10)
+  return isNaN(v) ? 5 : Math.max(1, Math.min(20, v))
 }
 
 function getMoodLabel(mood) {
@@ -33,18 +39,20 @@ function getMoodLabel(mood) {
 // ─── Tense Selection Screen ───────────────────────────────────────────────
 function TenseSelector({ onStart }) {
   const [selected, setSelected] = useState(loadSelection)
+  const [perTense, setPerTense] = useState(loadPerTense)
 
   const toggle = (key) => {
     setSelected(prev =>
       prev.includes(key)
-        ? prev.length > 1 ? prev.filter(k => k !== key) : prev // keep at least 1
+        ? prev.length > 1 ? prev.filter(k => k !== key) : prev
         : [...prev, key]
     )
   }
 
   const handleStart = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selected))
-    onStart(selected)
+    localStorage.setItem(PER_TENSE_KEY, String(perTense))
+    onStart(selected, perTense)
   }
 
   const groupedByMood = SELECTABLE_TENSES.reduce((acc, t) => {
@@ -107,8 +115,28 @@ function TenseSelector({ onStart }) {
           </div>
         ))}
 
-        <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginBottom: 16 }}>
           已選 {selected.length} / {SELECTABLE_TENSES.length} 個時態
+        </div>
+
+        {/* Per-tense question count */}
+        <div style={{ background: 'var(--paper)', borderRadius: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.07)', padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>每個時態題數</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)', minWidth: 28, textAlign: 'right' }}>{perTense}</span>
+          </div>
+          <input
+            type="range" min="1" max="20" value={perTense}
+            onChange={(e) => setPerTense(Number(e.target.value))}
+            style={{ width: '100%', accentColor: 'var(--accent)' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            <span>1 題</span>
+            <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+              預計共 <strong style={{ color: 'var(--ink)' }}>{selected.length * perTense}</strong> 題
+            </span>
+            <span>20 題</span>
+          </div>
         </div>
 
         <button
@@ -145,13 +173,13 @@ function shuffle(arr) {
   return a
 }
 
-function QuizSession({ selectedTenses, onReset }) {
+function QuizSession({ selectedTenses, perTense, onReset }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const { data: cards, isLoading } = useQuery({
-    queryKey: ['quiz-due', selectedTenses.join(',')],
-    queryFn: () => api.getDue(20, selectedTenses),
+    queryKey: ['quiz-due', selectedTenses.join(','), perTense],
+    queryFn: () => api.getDue(selectedTenses, perTense),
     staleTime: 0,
   })
 
@@ -304,11 +332,11 @@ function QuizSession({ selectedTenses, onReset }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────
 export default function QuizPage() {
-  const [selectedTenses, setSelectedTenses] = useState(null)
+  const [session, setSession] = useState(null) // { tenses, perTense }
 
-  if (!selectedTenses) {
-    return <TenseSelector onStart={setSelectedTenses} />
+  if (!session) {
+    return <TenseSelector onStart={(tenses, perTense) => setSession({ tenses, perTense })} />
   }
 
-  return <QuizSession selectedTenses={selectedTenses} onReset={() => setSelectedTenses(null)} />
+  return <QuizSession selectedTenses={session.tenses} perTense={session.perTense} onReset={() => setSession(null)} />
 }

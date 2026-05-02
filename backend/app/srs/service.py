@@ -64,14 +64,17 @@ def generate_distractors(card: dict, db) -> list:
     random.shuffle(distractors)
     return distractors[:3]
 
-def get_due_cards(user_id: int, db, limit: int = 20, mood_tenses: list = None) -> list:
+def get_due_cards(user_id: int, db, limit: int = 20, mood_tenses: list = None, per_tense: int = None) -> list:
+    """Fetch due cards.
+    If per_tense is set, return at most per_tense cards per (verb, mood, tense) group,
+    prioritising struggling cards within each group.
+    """
     base = """SELECT id, user_id, verb_infinitive, mood, tense, person, correct_form,
                      repetitions, ease_factor, interval_days, due_date
               FROM srs_cards WHERE user_id = ? AND due_date <= DATE('now')"""
     params = [user_id]
 
     if mood_tenses:
-        # mood_tenses is a list of "mood:tense" strings
         clauses = []
         for mt in mood_tenses:
             if ":" in mt:
@@ -81,11 +84,28 @@ def get_due_cards(user_id: int, db, limit: int = 20, mood_tenses: list = None) -
         if clauses:
             base += " AND (" + " OR ".join(clauses) + ")"
 
-    # Prioritize: lowest ease_factor first (most struggling), then most overdue
+    # Prioritize: struggling first, then most overdue
     base += " ORDER BY ease_factor ASC, due_date ASC LIMIT ?"
-    params.append(limit)
+    params.append(limit * 10 if per_tense else limit)  # fetch extra when capping per group
     rows = db.execute(base, params).fetchall()
-    return [dict(r) for r in rows]
+    all_cards = [dict(r) for r in rows]
+
+    if not per_tense:
+        return all_cards[:limit]
+
+    # Cap per (verb, mood, tense) group
+    counts: dict = {}
+    result = []
+    for card in all_cards:
+        key = (card['verb_infinitive'], card['mood'], card['tense'])
+        counts[key] = counts.get(key, 0)
+        if counts[key] < per_tense:
+            result.append(card)
+            counts[key] += 1
+        if len(result) >= limit:
+            break
+
+    return result
 
 def process_answer(user_id: int, card_id: int, question_type: str, user_answer: str, db) -> dict:
     from fastapi import HTTPException
