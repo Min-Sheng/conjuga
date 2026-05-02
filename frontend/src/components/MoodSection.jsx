@@ -92,16 +92,20 @@ const TENSE_ORDER = {
   imperativo: ['afirmativo', 'negativo'],
 }
 
+const HIDDEN_TENSES = new Set(['pretérito-anterior'])
+
 function sortTenses(mood, tenses) {
   const order = TENSE_ORDER[mood] || []
-  return Object.entries(tenses).sort(([a], [b]) => {
-    const ia = order.indexOf(a)
-    const ib = order.indexOf(b)
-    if (ia === -1 && ib === -1) return a.localeCompare(b)
-    if (ia === -1) return 1
-    if (ib === -1) return -1
-    return ia - ib
-  })
+  return Object.entries(tenses)
+    .filter(([tense]) => !HIDDEN_TENSES.has(tense))
+    .sort(([a], [b]) => {
+      const ia = order.indexOf(a)
+      const ib = order.indexOf(b)
+      if (ia === -1 && ib === -1) return a.localeCompare(b)
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
 }
 
 export default function MoodSection({ mood, tenses, defaultOpen = false }) {
