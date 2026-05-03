@@ -1,46 +1,196 @@
 @import "tailwindcss";
 
+/* ── Design tokens ──────────────────────────────────────────────── */
 :root {
-  --bg: #F5F5F7;
-  --paper: #FFFFFF;
-  --ink: #1D1D1F;
-  --ink-2: #3A3A3C;
-  --muted: #86868B;
-  --accent: #0071E3;
-  --accent-dark: #0077ED;
-  --danger: #FF3B30;
-  --success: #34C759;
-  --border: #D2D2D7;
+  /* Warm cream palette */
+  --bg:        #FAF5EC;
+  --bg-2:      #F3EBDB;
+  --surface:   #FFFFFF;
+  --surface-2: #FBF7F0;
+
+  /* Warm typography */
+  --ink:       #1B1410;
+  --ink-2:     #4A3A2C;
+  --muted:     #9A8470;
+  --muted-2:   #C4B09A;
+
+  /* Accent: terracotta */
+  --accent:      #C8481A;
+  --accent-2:    #E8602E;
+  --accent-bg:   #FDF0EB;
+
+  /* Gold */
+  --gold:        #B87820;
+  --gold-bg:     #FDF5E0;
+
+  /* Navy */
+  --navy:        #1A3560;
+  --navy-2:      #243E72;
+
+  /* Status */
+  --success:     #2E7D5A;
+  --success-bg:  #EAF5EF;
+  --danger:      #C83030;
+  --danger-bg:   #FCEAEA;
+
+  /* Borders & shadows */
+  --border:      rgba(27, 20, 16, 0.10);
+  --border-2:    rgba(27, 20, 16, 0.18);
+  --shadow-sm:   0 1px 3px rgba(27,20,16,.08), 0 1px 2px rgba(27,20,16,.04);
+  --shadow-md:   0 4px 12px rgba(27,20,16,.10), 0 2px 4px rgba(27,20,16,.06);
+  --shadow-lg:   0 8px 24px rgba(27,20,16,.12), 0 4px 8px rgba(27,20,16,.06);
+
+  /* Fonts */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-ui:      'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* Safe areas */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bot: env(safe-area-inset-bottom, 0px);
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* ── Reset ──────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  margin: 0; padding: 0;
+}
+
 html { font-size: 16px; }
+
 html, body {
   background: var(--bg);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
-  margin: 0;
-  padding: 0;
+  -moz-osx-font-smoothing: grayscale;
 }
-body { min-height: 100vh; }
 
-/* App shell — phone-width, centered on desktop */
+/* Subtle tile pattern (homage to azulejo) */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(200,72,26,.06) 0 1px, transparent 1.5px);
+  background-size: 22px 22px;
+  opacity: 0.6;
+}
+
 #root {
+  position: relative; z-index: 1;
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
   background: var(--bg);
-  position: relative;
 }
 
-.loading-screen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  color: var(--muted);
-  font-size: 15px;
+/* ── Typography ──────────────────────────────────────────────────── */
+.display {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
 }
+
+.verb-form {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+}
+
+.card-warm {
+  background: var(--surface-2);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+.btn-primary {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none; border-radius: 12px;
+  font-family: var(--font-ui); font-size: 15px; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.01em;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(200,72,26,.30);
+}
+.btn-primary:hover { background: var(--accent-2); box-shadow: 0 4px 12px rgba(200,72,26,.35); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  display: flex; align-items: center; justify-content: center;
+  padding: 11px 20px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--border-2); border-radius: 10px;
+  font-family: var(--font-ui); font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.btn-secondary:hover { background: var(--bg-2); }
+
+/* ── Page header ─────────────────────────────────────────────────── */
+.page-header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+  padding: calc(var(--safe-top) + 16px) 20px 20px;
+  position: relative; overflow: hidden;
+}
+
+.page-header::after {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 90% 0%, rgba(200,72,26,.25) 0%, transparent 60%);
+}
+
+/* ── Input ───────────────────────────────────────────────────────── */
+.input-field {
+  width: 100%; padding: 12px 14px;
+  font-family: var(--font-ui); font-size: 16px; color: var(--ink);
+  background: var(--bg-2);
+  border: 1.5px solid var(--border-2); border-radius: 10px;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+}
+.input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(200,72,26,.12);
+}
+
+/* ── Loading ─────────────────────────────────────────────────────── */
+.loading-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; color: var(--muted);
+  font-size: 15px; font-family: var(--font-ui);
+}
+
+/* ── Animations ──────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-up  { animation: fadeUp  0.35s ease both; }
+.animate-in  { animation: fadeIn  0.25s ease both; }
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.10s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.20s; }
