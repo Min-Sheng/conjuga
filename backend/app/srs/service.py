@@ -1,5 +1,5 @@
+import json as _json
 from datetime import date, timedelta
-import random
 
 def levenshtein(s1: str, s2: str) -> int:
     if len(s1) < len(s2):
@@ -42,32 +42,23 @@ def sm2_update(card: dict, quality: int) -> dict:
     due_date = (date.today() + timedelta(days=interval)).isoformat()
     return {"repetitions": repetitions, "interval_days": interval, "ease_factor": ease, "due_date": due_date}
 
-def generate_distractors(card: dict, db) -> list:
-    correct = card["correct_form"]
-    rows = db.execute(
-        """SELECT correct_form FROM srs_cards
-           WHERE user_id = ? AND verb_infinitive = ? AND mood = ? AND tense = ? AND correct_form != ?
-           LIMIT 5""",
-        (card["user_id"], card["verb_infinitive"], card["mood"], card["tense"], correct)
-    ).fetchall()
-    distractors = [r["correct_form"] for r in rows]
-    if len(distractors) < 3:
-        rows2 = db.execute(
-            """SELECT correct_form FROM srs_cards
-               WHERE user_id = ? AND verb_infinitive = ? AND person = ? AND correct_form != ?
-               LIMIT 5""",
-            (card["user_id"], card["verb_infinitive"], card["person"], correct)
-        ).fetchall()
-        for r in rows2:
-            if r["correct_form"] not in distractors:
-                distractors.append(r["correct_form"])
-    random.shuffle(distractors)
-    return distractors[:3]
-
-def get_due_cards(user_id: int, db, limit: int = 20, mood_tenses: list = None, per_tense: int = None) -> list:
+def get_due_cards(
+    user_id: int,
+    db,
+    limit: int = 20,
+    mood_tenses: list = None,
+    per_tense: int = None,
+    verb_infinitives: list = None,
+) -> list:
     """Fetch due cards.
+
     If per_tense is set, return at most per_tense cards per (verb, mood, tense) group,
     prioritising struggling cards within each group.
+
+    Also appends distractor_only=True sibling cards for every (verb, mood, tense) group
+    that appears in the due results so the frontend always has enough choices for MC questions.
+
+    en_senses is batch-fetched from dictionary_cache and attached to every card.
     """
     base = """SELECT id, user_id, verb_infinitive, mood, tense, person, correct_form,
                      repetitions, ease_factor, interval_days, due_date
@@ -84,28 +75,86 @@ def get_due_cards(user_id: int, db, limit: int = 20, mood_tenses: list = None, p
         if clauses:
             base += " AND (" + " OR ".join(clauses) + ")"
 
-    # Prioritize: struggling first, then most overdue
+    if verb_infinitives:
+        placeholders = ','.join('?' * len(verb_infinitives))
+        base += f" AND verb_infinitive IN ({placeholders})"
+        params.extend(verb_infinitives)
+
+    # Fetch extra rows when we'll be capping per group
     base += " ORDER BY ease_factor ASC, due_date ASC LIMIT ?"
-    params.append(limit * 10 if per_tense else limit)  # fetch extra when capping per group
+    params.append(limit * 10 if per_tense else limit)
     rows = db.execute(base, params).fetchall()
     all_cards = [dict(r) for r in rows]
 
-    if not per_tense:
-        return all_cards[:limit]
+    if per_tense:
+        counts: dict = {}
+        result = []
+        for card in all_cards:
+            key = (card['verb_infinitive'], card['mood'], card['tense'])
+            counts[key] = counts.get(key, 0)
+            if counts[key] < per_tense:
+                result.append(card)
+                counts[key] += 1
+            if len(result) >= limit:
+                break
+        all_cards = result
+    else:
+        all_cards = all_cards[:limit]
 
-    # Cap per (verb, mood, tense) group
-    counts: dict = {}
-    result = []
-    for card in all_cards:
-        key = (card['verb_infinitive'], card['mood'], card['tense'])
-        counts[key] = counts.get(key, 0)
-        if counts[key] < per_tense:
-            result.append(card)
-            counts[key] += 1
-        if len(result) >= limit:
-            break
+    # ── Batch-fetch en_senses ────────────────────────────────────────────────
+    unique_verbs = list({c['verb_infinitive'] for c in all_cards})
+    en_senses_map: dict = {}
+    for verb in unique_verbs:
+        row = db.execute(
+            "SELECT en_senses FROM dictionary_cache WHERE word = ?", (verb,)
+        ).fetchone()
+        if row:
+            try:
+                en_senses_map[verb] = _json.loads(row['en_senses'])[:3]
+            except Exception:
+                en_senses_map[verb] = []
+        else:
+            en_senses_map[verb] = []
 
-    return result
+    # Mark all due cards and attach senses
+    due_ids: set = set()
+    for c in all_cards:
+        c['distractor_only'] = False
+        c['en_senses'] = en_senses_map.get(c['verb_infinitive'], [])
+        due_ids.add(c['id'])
+
+    # ── Fetch sibling cards for distractor purposes ──────────────────────────
+    unique_groups = {(c['verb_infinitive'], c['mood'], c['tense']) for c in all_cards}
+    distractor_cards = []
+
+    for verb, mood, tense in unique_groups:
+        if due_ids:
+            ph = ','.join('?' * len(due_ids))
+            sibling_rows = db.execute(
+                f"""SELECT id, user_id, verb_infinitive, mood, tense, person, correct_form,
+                           repetitions, ease_factor, interval_days, due_date
+                    FROM srs_cards
+                    WHERE user_id = ? AND verb_infinitive = ? AND mood = ? AND tense = ?
+                      AND id NOT IN ({ph})""",
+                [user_id, verb, mood, tense] + list(due_ids),
+            ).fetchall()
+        else:
+            sibling_rows = db.execute(
+                """SELECT id, user_id, verb_infinitive, mood, tense, person, correct_form,
+                          repetitions, ease_factor, interval_days, due_date
+                   FROM srs_cards
+                   WHERE user_id = ? AND verb_infinitive = ? AND mood = ? AND tense = ?""",
+                [user_id, verb, mood, tense],
+            ).fetchall()
+
+        for row in sibling_rows:
+            card = dict(row)
+            card['distractor_only'] = True
+            card['en_senses'] = en_senses_map.get(verb, [])
+            distractor_cards.append(card)
+
+    return all_cards + distractor_cards
+
 
 def process_answer(user_id: int, card_id: int, question_type: str, user_answer: str, db) -> dict:
     from fastapi import HTTPException

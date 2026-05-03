@@ -69,7 +69,7 @@ def init_db() -> None:
 @contextmanager
 def get_db():
     """Context manager returning a sqlite3.Connection with row_factory and foreign keys enabled."""
-    conn = sqlite3.connect(settings.DATABASE_URL)
+    conn = sqlite3.connect(settings.DATABASE_URL, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     try:

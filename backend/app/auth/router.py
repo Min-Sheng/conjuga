@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Cookie, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 
-from app.auth.schemas import LoginIn, RegisterIn, TokenOut, UserOut
+from app.auth.schemas import LoginIn, RegisterIn, TokenOut, UpdateProfileIn, UserOut
 from app.auth.service import (
     create_token,
     exchange_google_code,
@@ -110,4 +110,42 @@ def me(current_user: dict = Depends(get_current_user)):
         id=current_user["id"],
         email=current_user["email"],
         display_name=current_user["display_name"],
+        has_password=bool(current_user.get("password_hash")),
     )
+
+
+@router.put("/me", response_model=UserOut)
+def update_me(
+    body: UpdateProfileIn,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db_dep),
+):
+    if body.new_password is not None:
+        if not body.current_password:
+            raise HTTPException(status_code=400, detail="需要提供目前密碼")
+        if not current_user.get("password_hash"):
+            raise HTTPException(status_code=400, detail="Google 登入帳號無法設定密碼")
+        if not verify_password(body.current_password, current_user["password_hash"]):
+            raise HTTPException(status_code=400, detail="目前密碼不正確")
+        db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (hash_password(body.new_password), current_user["id"]),
+        )
+
+    if body.display_name is not None:
+        name = body.display_name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="顯示名稱不能為空")
+        db.execute(
+            "UPDATE users SET display_name = ? WHERE id = ?",
+            (name, current_user["id"]),
+        )
+
+    db.commit()
+    row = db.execute("SELECT * FROM users WHERE id = ?", (current_user["id"],)).fetchone()
+    return UserOut(id=row["id"], email=row["email"], display_name=row["display_name"], has_password=bool(row["password_hash"]))
+
+
+@router.get("/config")
+def get_config():
+    return {"google_oauth_enabled": bool(settings.GOOGLE_CLIENT_ID)}

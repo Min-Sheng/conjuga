@@ -1,33 +1,65 @@
 import { useState } from 'react'
+import { MOOD_INFO, getTenseZh, getTenseEs } from '../utils/tenseLabels'
 
-const MOOD_LABELS = {
-  'indicativo': '直說式', 'subjuntivo': '虛擬式', 'imperativo': '命令式',
-  'condicional': '條件式', 'infinitivo': '不定式', 'gerundio': '副動詞', 'participo': '分詞',
-}
-
-const TENSE_LABELS = {
-  indicativo: { presente: '簡單現在式', 'pretérito-perfecto-compuesto': '現在完成式', 'pretérito-perfecto-simple': '簡單過去式', 'pretérito-imperfecto': '過去未完成式', 'pretérito-pluscuamperfecto': '過去完成式', futuro: '簡單未來式', 'futuro-perfecto': '未來完成式' },
-  condicional: { presente: '簡單條件式', perfecto: '條件完成式' },
-  subjuntivo:  { presente: '虛擬現在式', 'pretérito-imperfecto-1': '虛擬過去未完成式（-ra）', 'pretérito-imperfecto-2': '虛擬過去未完成式（-se）', 'pretérito-perfecto': '虛擬現在完成式', 'pretérito-pluscuamperfecto-1': '虛擬過去完成式（-ra）', 'pretérito-pluscuamperfecto-2': '虛擬過去完成式（-se）', futuro: '虛擬未來式', 'futuro-perfecto': '虛擬未來完成式' },
-  imperativo:  { afirmativo: '肯定命令式', negativo: '否定命令式' },
-  gerundio:    { gerundio: '副動詞' },
-  participo:   { participo: '分詞' },
-}
-
-const PERSON_LABELS = {
-  yo: 'yo', tú: 'tú', vos: 'vos', él: 'él / ella', ella: 'él / ella',
-  nosotros: 'nosotros', vosotros: 'vosotros',
-  ellos: 'ellos / ellas', ellas: 'ellos / ellas',
-  usted: 'usted', ustedes: 'ustedes',
-}
-
-const HIDDEN_TENSES = new Set(['pretérito-anterior'])
-
+// Tense display order per mood
 const TENSE_ORDER = {
   indicativo:  ['presente', 'pretérito-perfecto-compuesto', 'pretérito-perfecto-simple', 'pretérito-imperfecto', 'pretérito-pluscuamperfecto', 'futuro', 'futuro-perfecto'],
   condicional: ['presente', 'perfecto'],
   subjuntivo:  ['presente', 'pretérito-imperfecto-1', 'pretérito-imperfecto-2', 'pretérito-perfecto', 'pretérito-pluscuamperfecto-1', 'pretérito-pluscuamperfecto-2', 'futuro', 'futuro-perfecto'],
   imperativo:  ['afirmativo', 'negativo'],
+}
+
+const HIDDEN_TENSES = new Set(['pretérito-anterior'])
+
+// Person merge groups — persons sharing the same form are collapsed to one row
+const MERGE_GROUPS = [
+  ['yo'],
+  ['tú', 'vos'],
+  ['él', 'ella', 'usted'],
+  ['nosotros', 'nosotras'],
+  ['vosotros', 'vosotras'],
+  ['ellos', 'ellas', 'ustedes'],
+]
+
+function buildPersonRows(persons) {
+  const formMap = {}
+  for (const pf of persons) {
+    if (pf.person) formMap[pf.person] = pf.form
+  }
+
+  const processed = new Set()
+  const rows = []
+
+  for (const group of MERGE_GROUPS) {
+    const present = group.filter(k => k in formMap)
+    if (present.length === 0) continue
+    present.forEach(k => processed.add(k))
+
+    // Bucket by form value
+    const byForm = {}
+    for (const k of present) {
+      const f = formMap[k]
+      if (!byForm[f]) byForm[f] = []
+      byForm[f].push(k)
+    }
+    // Emit one row per distinct form, preserving group order
+    const emitted = new Set()
+    for (const k of present) {
+      const f = formMap[k]
+      if (emitted.has(f)) continue
+      emitted.add(f)
+      rows.push({ label: byForm[f].join(' / '), form: f })
+    }
+  }
+
+  // Catch-all for persons not in any group (e.g. impersonal gerundio)
+  for (const pf of persons) {
+    if (!pf.person || !processed.has(pf.person)) {
+      rows.push({ label: pf.person || '—', form: pf.form })
+    }
+  }
+
+  return rows
 }
 
 function sortTenses(mood, tenses) {
@@ -42,23 +74,11 @@ function sortTenses(mood, tenses) {
     })
 }
 
-const MOOD_ORDER = ['indicativo', 'condicional', 'subjuntivo', 'imperativo', 'infinitivo', 'gerundio', 'participo']
-
-// Mood accent colors
-const MOOD_ACCENT = {
-  indicativo:  { bg: 'var(--navy)', text: '#fff', dot: '#93B4E8' },
-  condicional: { bg: '#5A3A8C', text: '#fff', dot: '#C4A8E8' },
-  subjuntivo:  { bg: '#1A6B4A', text: '#fff', dot: '#7DC4A8' },
-  imperativo:  { bg: 'var(--accent)', text: '#fff', dot: '#FFB08A' },
-  gerundio:    { bg: '#7A5A28', text: '#fff', dot: '#D4A855' },
-  participo:   { bg: '#7A5A28', text: '#fff', dot: '#D4A855' },
-  infinitivo:  { bg: '#4A4A4A', text: '#fff', dot: '#A8A8A8' },
-}
-
 export default function MoodSection({ mood, tenses, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen)
   const tenseList = sortTenses(mood, tenses)
-  const accent = MOOD_ACCENT[mood] || MOOD_ACCENT.infinitivo
+  const info = MOOD_INFO[mood] || MOOD_INFO.infinitivo
+  const accent = info.accent
 
   return (
     <div style={{ marginBottom: 10, borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)' }}>
@@ -67,7 +87,7 @@ export default function MoodSection({ mood, tenses, defaultOpen = false }) {
         padding: '13px 16px', background: accent.bg, border: 'none', cursor: 'pointer',
       }}>
         <span style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: accent.text, letterSpacing: '0.01em' }}>
-          {MOOD_LABELS[mood] || mood}
+          {info.zh}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: accent.dot, fontWeight: 600 }}>{tenseList.length} 個時態</span>
@@ -87,7 +107,6 @@ export default function MoodSection({ mood, tenses, defaultOpen = false }) {
               tense={tense}
               persons={persons}
               isLast={ti === tenseList.length - 1}
-              accentDot={accent.dot}
             />
           ))}
         </div>
@@ -96,10 +115,12 @@ export default function MoodSection({ mood, tenses, defaultOpen = false }) {
   )
 }
 
-function TenseGroup({ mood, tense, persons, isLast, accentDot }) {
+function TenseGroup({ mood, tense, persons, isLast }) {
   const [open, setOpen] = useState(false)
-  const label = TENSE_LABELS[mood]?.[tense] ?? tense
-  const preview = persons.slice(0, 2).map(p => p.form).join(', ')
+  const zh = getTenseZh(mood, tense)
+  const es = getTenseEs(mood, tense)
+  const rows = buildPersonRows(persons)
+  const preview = rows.slice(0, 2).map(r => r.form).join(', ')
 
   return (
     <div style={{ borderBottom: isLast ? 'none' : '1px solid var(--border)' }}>
@@ -107,9 +128,15 @@ function TenseGroup({ mood, tense, persons, isLast, accentDot }) {
         width: '100%', display: 'flex', alignItems: 'center',
         padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', gap: 10,
       }}>
-        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', minWidth: 0, flex: '0 0 auto' }}>
-          {label}
-        </span>
+        {/* Tense label: Chinese + Spanish stacked */}
+        <div style={{ flex: '0 0 auto', textAlign: 'left', minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.3 }}>
+            {zh}
+          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 11, color: 'var(--muted)', lineHeight: 1.3 }}>
+            {es}
+          </div>
+        </div>
         {!open && (
           <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 15, color: 'var(--muted)', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {preview}…
@@ -123,16 +150,17 @@ function TenseGroup({ mood, tense, persons, isLast, accentDot }) {
 
       {open && (
         <div style={{ padding: '2px 16px 12px' }}>
-          {persons.map((pf, i) => (
-            <div key={pf.person || i} style={{
-              display: 'grid', gridTemplateColumns: '100px 1fr',
-              padding: '8px 0', borderBottom: '1px dotted var(--border)', alignItems: 'baseline',
+          {rows.map((row, i) => (
+            <div key={row.label} style={{
+              display: 'grid', gridTemplateColumns: '130px 1fr',
+              padding: '8px 0', borderBottom: i < rows.length - 1 ? '1px dotted var(--border)' : 'none',
+              alignItems: 'baseline',
             }}>
               <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>
-                {PERSON_LABELS[pf.person] || pf.person || '—'}
+                {row.label}
               </span>
               <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 20, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-                {pf.form}
+                {row.form}
               </span>
             </div>
           ))}

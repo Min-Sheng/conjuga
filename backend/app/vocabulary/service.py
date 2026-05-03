@@ -24,6 +24,9 @@ DEFAULT_TENSES = [
     # 命令式
     ("imperativo", "afirmativo"),
     ("imperativo", "negativo"),
+    # 不定式
+    ("infinitivo", "infinitivo"),
+    ("infinitivo", "infinitivo-compuesto"),
     # 非人稱
     ("gerundio", "gerundio"),
     ("participo", "participo"),

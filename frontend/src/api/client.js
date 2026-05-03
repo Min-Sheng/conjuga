@@ -51,6 +51,8 @@ export const api = {
   register: (data) => request('POST', '/auth/register', data),
   login: (data) => request('POST', '/auth/login', data),
   me: () => request('GET', '/auth/me'),
+  updateProfile: (data) => request('PUT', '/auth/me', data),
+  getConfig: () => request('GET', '/auth/config'),
 
   // Verbs
   lookup: (q) => request('GET', `/verbs/lookup?q=${encodeURIComponent(q)}`),
@@ -61,9 +63,10 @@ export const api = {
   deleteVocab: (infinitive) => request('DELETE', `/vocab/${infinitive}`),
 
   // Quiz
-  getDue: (moodTenses = [], perTense = 5) => {
+  getDue: (moodTenses = [], perTense = 7, verbs = []) => {
     const params = new URLSearchParams({ limit: 500, per_tense: perTense })
     if (moodTenses.length) params.set('filter', moodTenses.join(','))
+    if (verbs.length) params.set('verbs', verbs.join(','))
     return request('GET', `/quiz/due?${params}`)
   },
   submitAnswer: (data) => request('POST', '/quiz/answer', data),

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class CardOut(BaseModel):
     id: int
@@ -11,6 +12,8 @@ class CardOut(BaseModel):
     ease_factor: float
     interval_days: int
     due_date: str
+    distractor_only: bool = False
+    en_senses: List[str] = []
 
 class AnswerIn(BaseModel):
     card_id: int

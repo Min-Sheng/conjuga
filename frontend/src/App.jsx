@@ -65,8 +65,14 @@ function AuthProvider({ children }) {
     queryClient.clear()
   }
 
+  const updateProfile = async (data) => {
+    const updated = await api.updateProfile(data)
+    setUser(prev => ({ ...prev, ...updated }))
+    return updated
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )
