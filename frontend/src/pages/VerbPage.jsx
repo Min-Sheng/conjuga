@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import MoodSection from '../components/MoodSection'
-import { addRecent } from '../utils/recent'
+import { addRecent, removeRecent } from '../utils/recent'
 
 const MOOD_ORDER = ['indicativo', 'condicional', 'subjuntivo', 'imperativo', 'infinitivo', 'gerundio', 'participo']
 
@@ -19,8 +19,9 @@ export default function VerbPage() {
     retry: false,
   })
 
-  // Only record to recent after a confirmed successful lookup
+  // Add to recent only on success; remove on failure (cleans up stale entries too)
   useEffect(() => { if (data?.infinitive) addRecent(data.infinitive) }, [data?.infinitive])
+  useEffect(() => { if (error) removeRecent(infinitive) }, [error]) // eslint-disable-line
 
   const vocabQ = useQuery({ queryKey: ['vocab'], queryFn: api.getVocab })
   const inVocab = vocabQ.data?.some(v => v.verb_infinitive === data?.infinitive)

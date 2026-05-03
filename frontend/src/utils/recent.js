@@ -9,3 +9,8 @@ export function addRecent(infinitive) {
   const r = [infinitive, ...getRecent().filter(v => v !== infinitive)].slice(0, MAX_RECENT)
   localStorage.setItem(RECENT_KEY, JSON.stringify(r))
 }
+
+export function removeRecent(term) {
+  const r = getRecent().filter(v => v !== term)
+  localStorage.setItem(RECENT_KEY, JSON.stringify(r))
+}
