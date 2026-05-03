@@ -32,15 +32,14 @@ const SELECTABLE_TENSES = [
   { mood: 'imperativo',  tense: 'negativo',                     label: '否定命令式',              d: true  },
   // 不定式
   { mood: 'infinitivo',  tense: 'infinitivo',                   label: '不定式',                  d: false },
-  { mood: 'infinitivo',  tense: 'infinitivo-compuesto',         label: '完成不定式',              d: false },
   // 非人稱
   { mood: 'gerundio',    tense: 'gerundio',                     label: '副動詞',                  d: false },
   { mood: 'participo',   tense: 'participo',                    label: '分詞',                    d: false },
 ]
 
 const ALL_KEYS        = SELECTABLE_TENSES.map(t => `${t.mood}:${t.tense}`)
-const DEFAULT_KEYS    = SELECTABLE_TENSES.filter(t => t.d).map(t => `${t.mood}:${t.tense}`)
-const STORAGE_KEY     = 'verbo_quiz_tenses_v2'
+const DEFAULT_KEYS    = ['indicativo:presente']
+const STORAGE_KEY     = 'verbo_quiz_tenses_v3'
 const PER_TENSE_KEY   = 'verbo_quiz_per_tense_v3'
 
 const MOOD_GROUP_LABEL = {
@@ -148,7 +147,6 @@ function TenseSelector({ onNext }) {
                       <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', fontFamily: 'var(--font-display)', marginTop: 1 }}>
                         {getTenseEs(t.mood, t.tense)}
                       </div>
-                      {!t.d && <span style={{ fontSize: 10, color: 'var(--muted)', background: 'var(--bg-2)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-ui)' }}>少用</span>}
                     </div>
                     <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, background: on ? 'var(--accent)' : 'var(--bg)', border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.12s' }}>
                       {on && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}

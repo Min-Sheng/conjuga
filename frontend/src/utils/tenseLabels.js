@@ -27,8 +27,7 @@ export const TENSE_INFO = {
     negativo:   { zh: '否定命令式', es: 'Imperativo negativo' },
   },
   infinitivo: {
-    infinitivo:             { zh: '不定式',    es: 'Infinitivo' },
-    'infinitivo-compuesto': { zh: '完成不定式', es: 'Infinitivo compuesto' },
+    infinitivo: { zh: '不定式', es: 'Infinitivo' },
   },
   gerundio:  { gerundio: { zh: '副動詞', es: 'Gerundio' } },
   participo: { participo: { zh: '分詞',   es: 'Participio' } },

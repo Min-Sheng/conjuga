@@ -26,11 +26,42 @@ DEFAULT_TENSES = [
     ("imperativo", "negativo"),
     # 不定式
     ("infinitivo", "infinitivo"),
-    ("infinitivo", "infinitivo-compuesto"),
     # 非人稱
     ("gerundio", "gerundio"),
     ("participo", "participo"),
 ]
+
+# ── Mastery thresholds ────────────────────────────────────────────────────────
+MASTERY_RATE      = 0.80   # correct_rate >= this → mastered (per person)
+MASTERY_MIN_REPS  = 5      # minimum attempts per person to qualify as mastered
+STRUGGLING_RATE   = 0.40   # correct_rate <  this → struggling (per person)
+
+
+def _person_status(total: int, correct: int) -> str:
+    if total == 0:
+        return 'new'
+    rate = correct / total
+    if rate >= MASTERY_RATE and total >= MASTERY_MIN_REPS:
+        return 'mastered'
+    if rate < STRUGGLING_RATE:
+        return 'struggling'
+    return 'learning'
+
+
+def _tense_status(person_statuses: list) -> str:
+    """Aggregate individual person statuses into one tense-level status.
+
+    A tense is mastered only when ALL persons are mastered.
+    A tense is struggling when ANY person is struggling.
+    """
+    if not person_statuses or all(s == 'new' for s in person_statuses):
+        return 'new'
+    if any(s == 'struggling' for s in person_statuses):
+        return 'struggling'
+    if all(s == 'mastered' for s in person_statuses):
+        return 'mastered'
+    return 'learning'
+
 
 def add_verb(user_id: int, infinitive: str, db) -> dict:
     db.execute(
@@ -51,7 +82,7 @@ def add_verb(user_id: int, infinitive: str, db) -> dict:
         for person_form in conjugations[mood][tense]:
             person = person_form["person"]
             form = person_form["form"]
-            if not person or not form:
+            if not form:
                 continue
             try:
                 db.execute(
@@ -66,19 +97,12 @@ def add_verb(user_id: int, infinitive: str, db) -> dict:
     db.commit()
     return {"added": True, "cards_created": cards_created}
 
+
 def remove_verb(user_id: int, infinitive: str, db):
     db.execute("DELETE FROM user_vocabulary WHERE user_id = ? AND verb_infinitive = ?", (user_id, infinitive))
     db.execute("DELETE FROM srs_cards WHERE user_id = ? AND verb_infinitive = ?", (user_id, infinitive))
     db.commit()
 
-def _tense_status(ease: float, reps: int) -> str:
-    if reps == 0:
-        return 'new'
-    if ease < 2.0:
-        return 'struggling'
-    if reps >= 3 and ease >= 2.3:
-        return 'mastered'
-    return 'learning'
 
 def list_verbs(user_id: int, db) -> list:
     rows = db.execute(
@@ -94,36 +118,53 @@ def list_verbs(user_id: int, db) -> list:
 
     verbs = [dict(r) for r in rows]
 
-    # Attach per-tense mastery for each verb
     for verb in verbs:
-        tense_rows = db.execute(
-            """SELECT mood, tense,
-                      ROUND(AVG(ease_factor), 2) as ease,
-                      MAX(repetitions) as reps,
-                      SUM(CASE WHEN due_date <= DATE('now') THEN 1 ELSE 0 END) as due
-               FROM srs_cards
-               WHERE user_id = ? AND verb_infinitive = ?
-               GROUP BY mood, tense""",
-            (user_id, verb['verb_infinitive'])
+        # Per-person correct-rate from quiz_log
+        person_rows = db.execute(
+            """SELECT sc.mood, sc.tense, sc.person,
+                      COUNT(ql.id)                                         AS total_answers,
+                      SUM(CASE WHEN ql.is_correct THEN 1 ELSE 0 END)      AS correct_answers
+               FROM srs_cards sc
+               LEFT JOIN quiz_log ql ON ql.card_id = sc.id AND ql.user_id = ?
+               WHERE sc.user_id = ? AND sc.verb_infinitive = ?
+               GROUP BY sc.mood, sc.tense, sc.person""",
+            (user_id, user_id, verb['verb_infinitive'])
         ).fetchall()
 
-        # Index by (mood, tense) for O(1) lookup
-        card_map = {(r['mood'], r['tense']): r for r in tense_rows}
+        # Index person data by (mood, tense)
+        tense_map: dict = {}
+        for r in person_rows:
+            key = (r['mood'], r['tense'])
+            if key not in tense_map:
+                tense_map[key] = {'person_statuses': [], 'total': 0, 'correct': 0}
+            tense_map[key]['person_statuses'].append(
+                _person_status(r['total_answers'], r['correct_answers'])
+            )
+            tense_map[key]['total']   += r['total_answers']
+            tense_map[key]['correct'] += r['correct_answers']
 
         tense_mastery = []
         for mood, tense in DEFAULT_TENSES:
-            r = card_map.get((mood, tense))
-            if r:
+            key = (mood, tense)
+            if key in tense_map:
+                d = tense_map[key]
+                total   = d['total']
+                correct = d['correct']
+                status  = _tense_status(d['person_statuses'])
+                correct_rate = round(correct / total, 3) if total > 0 else None
                 tense_mastery.append({
-                    'mood': mood,
-                    'tense': tense,
-                    'status': _tense_status(r['ease'], r['reps']),
-                    'ease_factor': r['ease'],
-                    'repetitions': r['reps'],
-                    'due': r['due'],
+                    'mood': mood, 'tense': tense,
+                    'status': status,
+                    'correct_rate': correct_rate,
+                    'total_answers': total,
                 })
             else:
-                tense_mastery.append({'mood': mood, 'tense': tense, 'status': 'new', 'ease_factor': 2.5, 'repetitions': 0, 'due': 0})
+                tense_mastery.append({
+                    'mood': mood, 'tense': tense,
+                    'status': 'new',
+                    'correct_rate': None,
+                    'total_answers': 0,
+                })
 
         verb['tense_mastery'] = tense_mastery
 

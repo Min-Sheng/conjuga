@@ -80,8 +80,18 @@ def get_due_cards(
         base += f" AND verb_infinitive IN ({placeholders})"
         params.extend(verb_infinitives)
 
-    # Fetch extra rows when we'll be capping per group
-    base += " ORDER BY ease_factor ASC, due_date ASC LIMIT ?"
+    # Sort by correct_rate ASC (NULL = new cards, come first in SQLite).
+    # Within same rate, oldest due_date first.
+    base = f"""
+        SELECT sc.id, sc.user_id, sc.verb_infinitive, sc.mood, sc.tense, sc.person,
+               sc.correct_form, sc.repetitions, sc.ease_factor, sc.interval_days, sc.due_date,
+               CAST(SUM(ql.is_correct) AS REAL) / NULLIF(COUNT(ql.id), 0) AS _correct_rate
+        FROM ({base}) sc
+        LEFT JOIN quiz_log ql ON ql.card_id = sc.id AND ql.user_id = sc.user_id
+        GROUP BY sc.id
+        ORDER BY _correct_rate ASC, sc.due_date ASC
+        LIMIT ?
+    """
     params.append(limit * 10 if per_tense else limit)
     rows = db.execute(base, params).fetchall()
     all_cards = [dict(r) for r in rows]
