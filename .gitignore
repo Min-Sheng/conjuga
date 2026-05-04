@@ -1,19 +1,45 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.pyo
+*.pyd
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.flakes/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
 # Virtual environment
 .venv/
 venv/
-env/
+ENV/
+env.bak/
+venv.bak/
 
 # Databases (runtime — not committed)
 *.db
+*.db-journal
 *.sqlite3
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Environment variables
 .env
@@ -23,15 +49,21 @@ env/
 # macOS
 .DS_Store
 **/.DS_Store
+.AppleDouble
+.LSOverride
 
 # Frontend build
 node_modules/
+jspm_packages/
 dist/
 .vite/
-
-# kaikki.org full dump (~900 MB)
-kaikki.org-dictionary-Spanish.jsonl
+.parcel-cache/
+.next/
+.nuxt/
 
 # Tool artifacts
 .claude/
 .superpowers/
+
+# Large data files
+kaikki.org-dictionary-Spanish.jsonl
