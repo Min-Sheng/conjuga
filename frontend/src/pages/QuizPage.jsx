@@ -101,7 +101,7 @@ function TenseSelector({ onNext }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
+    <div className="page-root" style={{ paddingBottom: 'var(--nav-clearance)' }}>
       <div className="page-header">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-ui)' }}>測驗設定</div>
@@ -217,7 +217,7 @@ function VerbSelector({ selectedTenses, perTense, onStart, onBack }) {
   const deselectAll = () => setSelected(vocab.length > 0 ? [vocab[0].verb_infinitive] : [])
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
+    <div className="page-root" style={{ paddingBottom: 'var(--nav-clearance)' }}>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 1 }}>
           <button onClick={onBack} style={{ background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.18)', color: '#fff', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 17, lineHeight: 1 }}>‹</button>
@@ -349,7 +349,7 @@ function QuizSession({ selectedTenses, perTense, selectedVerbs, onReset, onRevie
   if (!cards || questionCards.length === 0 || done) {
     const accuracy = done && questionCards.length > 0 ? Math.round(correctCount / questionCards.length * 100) : 0
     return (
-      <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
+      <div className="page-root" style={{ paddingBottom: 'var(--nav-clearance)' }}>
         <div className="page-header">
           <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-ui)', position: 'relative', zIndex: 1 }}>測驗</div>
         </div>
@@ -399,7 +399,7 @@ function QuizSession({ selectedTenses, perTense, selectedVerbs, onReset, onRevie
   }
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
+    <div className="page-root" style={{ paddingBottom: 'var(--nav-clearance)' }}>
       <div className="page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
           <button onClick={onReset} style={{ background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.18)', color: '#fff', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-ui)' }}>

@@ -86,7 +86,7 @@ export default function VerbPage() {
   const formIndex = useMemo(() => data ? buildFormIndex(data.conjugations) : {}, [data])
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
+    <div className="page-root" style={{ paddingBottom: 'var(--nav-clearance)' }}>
       {/* Header */}
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 1 }}>

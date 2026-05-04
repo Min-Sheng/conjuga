@@ -20,17 +20,12 @@ export default function NavBar() {
   ]
 
   return (
-    <nav style={{
-      position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: 480,
-      background: 'rgba(250,245,236,.88)',
-      backdropFilter: 'blur(16px) saturate(1.4)',
-      borderTop: '1px solid var(--border-2)',
-      display: 'flex',
-      paddingBottom: 'var(--safe-bot)',
-      zIndex: 100,
-    }}>
-      {tabs.map(({ path, label, icon, badge }) => {
+    <nav className="nav-wrap">
+      <div className="nav-brand">
+        Verb<span style={{ color: 'var(--accent)' }}>o</span>
+      </div>
+      <div className="nav-items">
+        {tabs.map(({ path, label, icon, badge }) => {
         const active = path === '/' ? pathname === '/' : pathname.startsWith(path)
         return (
           <button key={path} onClick={() => navigate(path)} style={{
@@ -69,7 +64,8 @@ export default function NavBar() {
             )}
           </button>
         )
-      })}
+        })}
+      </div>
     </nav>
   )
 }

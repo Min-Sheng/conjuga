@@ -22,7 +22,7 @@ export default function SearchPage() {
   const refreshRecent = () => setRecent(getRecent())
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }} onFocus={refreshRecent}>
+    <div className="page-root" style={{ paddingBottom: 'var(--nav-clearance)' }} onFocus={refreshRecent}>
       {/* Header */}
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>

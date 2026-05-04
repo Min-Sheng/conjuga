@@ -140,7 +140,7 @@ export default function VocabPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
+    <div className="page-root" style={{ paddingBottom: 'var(--nav-clearance)' }}>
       <div className="page-header">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-ui)' }}>單字庫</div>
