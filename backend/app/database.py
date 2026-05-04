@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS dictionary_cache (
     word TEXT PRIMARY KEY,
     en_senses TEXT NOT NULL,
+    examples TEXT,
     fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -63,6 +64,10 @@ def init_db() -> None:
     """Create all tables if they don't exist."""
     with get_db() as conn:
         conn.executescript(_SCHEMA_SQL)
+        try:
+            conn.execute("ALTER TABLE dictionary_cache ADD COLUMN examples TEXT")
+        except Exception:
+            pass  # column already exists
         conn.commit()
 
 

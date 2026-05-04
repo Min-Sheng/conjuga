@@ -39,11 +39,12 @@ async def lookup_verb(
         for tense, persons in tenses.items():
             conjugations[mood][tense] = [PersonForm(**p) for p in persons]
 
-    en_senses = service.get_meaning(infinitive, db)
+    en_senses, examples = service.get_meaning(infinitive, db)
 
     return VerbLookupOut(
         input_form=q,
         infinitive=infinitive,
         en_senses=en_senses,
+        examples=examples,
         conjugations=conjugations,
     )

@@ -289,25 +289,38 @@ function VerbSelector({ selectedTenses, perTense, onStart, onBack }) {
 }
 
 // ─── Step 3: Quiz session ─────────────────────────────────────────────────────
-function QuizSession({ selectedTenses, perTense, selectedVerbs, onReset }) {
+function QuizSession({ selectedTenses, perTense, selectedVerbs, onReset, onReview, forcedCards }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const { data: cards, isLoading } = useQuery({
+  const isReview = !!forcedCards
+  const { data: fetchedCards, isLoading } = useQuery({
     queryKey: ['quiz-due', selectedTenses.join(','), perTense, selectedVerbs.join(',')],
     queryFn: () => api.getDue(selectedTenses, perTense, selectedVerbs),
     staleTime: 0,
+    enabled: !isReview,
   })
+  const cards = isReview ? forcedCards : fetchedCards
 
   const [index, setIndex] = useState(0)
   const [result, setResult] = useState(null)
   const [fillAnswer, setFillAnswer] = useState('')
   const [selectedChoice, setSelectedChoice] = useState(null)
   const [done, setDone] = useState(false)
+  const [correctCount, setCorrectCount] = useState(0)
+  const [wrongCards, setWrongCards] = useState([])
 
   const mutation = useMutation({
     mutationFn: (data) => api.submitAnswer(data),
-    onSuccess: (res) => { setResult(res); queryClient.invalidateQueries({ queryKey: ['quiz-stats'] }) },
+    onSuccess: (res) => {
+      setResult(res)
+      if (res.is_correct) {
+        setCorrectCount(c => c + 1)
+      } else {
+        setWrongCards(prev => [...prev, card])
+      }
+      queryClient.invalidateQueries({ queryKey: ['quiz-stats'] })
+    },
   })
 
   // Only non-distractor cards are questions
@@ -334,6 +347,7 @@ function QuizSession({ selectedTenses, perTense, selectedVerbs, onReset }) {
   if (isLoading) return <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'var(--font-ui)' }}>載入中…</div>
 
   if (!cards || questionCards.length === 0 || done) {
+    const accuracy = done && questionCards.length > 0 ? Math.round(correctCount / questionCards.length * 100) : 0
     return (
       <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
         <div className="page-header">
@@ -341,17 +355,23 @@ function QuizSession({ selectedTenses, perTense, selectedVerbs, onReset }) {
         </div>
         <div style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--muted)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>{done ? '🎉' : '✅'}</div>
+          {done && <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--accent)', marginBottom: 8, fontFamily: 'var(--font-ui)' }}>{correctCount}/{questionCards.length}</div>}
           <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)', marginBottom: 8, fontFamily: 'var(--font-ui)' }}>
             {done ? '本輪完成！' : '所選條件今日沒有待複習的卡片'}
           </div>
           <div style={{ fontSize: 14, marginBottom: 24, fontFamily: 'var(--font-ui)' }}>
-            {done ? `完成 ${questionCards.length} 張卡片` : '可以換選其他時態或去單字庫加入更多動詞'}
+            {done ? `答對 ${correctCount}/${questionCards.length}（${accuracy}%）` : '可以換選其他時態或去單字庫加入更多動詞'}
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={onReset} style={{ padding: '11px 20px', background: 'var(--surface)', color: 'var(--ink)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
-              重新設定
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', flexDirection: wrongCards.length > 0 ? 'column' : 'row' }}>
+            {wrongCards.length > 0 && (
+              <button onClick={() => onReview(wrongCards)} className="btn-primary" style={{ width: '100%', padding: '11px 20px' }}>
+                重做錯題（{wrongCards.length} 題）→
+              </button>
+            )}
+            <button onClick={onReset} style={{ padding: '11px 20px', background: 'var(--surface)', color: 'var(--ink)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', width: wrongCards.length > 0 ? '100%' : 'auto' }}>
+              開始新測驗
             </button>
-            <button onClick={() => navigate('/vocab')} className="btn-primary" style={{ width: 'auto', padding: '11px 20px' }}>
+            <button onClick={() => navigate('/vocab')} className="btn-primary" style={{ width: wrongCards.length > 0 ? '100%' : 'auto', padding: '11px 20px' }}>
               前往單字庫
             </button>
           </div>
@@ -508,12 +528,26 @@ export default function QuizPage() {
     )
   }
 
+  if (step === 'review') {
+    return (
+      <QuizSession
+        forcedCards={config.wrongCards}
+        selectedTenses={config.tenses}
+        perTense={config.perTense}
+        selectedVerbs={config.verbs}
+        onReset={() => { setConfig(null); setStep('tense') }}
+        onReview={(cards) => { setConfig(prev => ({ ...prev, wrongCards: cards })); setStep('review') }}
+      />
+    )
+  }
+
   return (
     <QuizSession
       selectedTenses={config.tenses}
       perTense={config.perTense}
       selectedVerbs={config.verbs}
       onReset={() => { setConfig(null); setStep('tense') }}
+      onReview={(cards) => { setConfig(prev => ({ ...prev, wrongCards: cards })); setStep('review') }}
     />
   )
 }

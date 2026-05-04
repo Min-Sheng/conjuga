@@ -9,5 +9,6 @@ class VerbLookupOut(BaseModel):
     input_form: str
     infinitive: str
     en_senses: list[str]
+    examples: list[dict] = []
     conjugations: dict[str, dict[str, list[PersonForm]]]
     # Structure: { mood: { tense: [ {person, form} ] } }

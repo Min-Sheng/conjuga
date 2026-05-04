@@ -43,15 +43,15 @@ def get_conjugations(infinitive: str) -> dict:
                 result[mood][tense] = persons
     return result
 
-def get_meaning(infinitive: str, db) -> list[str]:
-    """Fetch English meanings from kaikki.org. Caches in dictionary_cache table."""
-    # Check cache first
+def get_meaning(infinitive: str, db) -> tuple[list[str], list[dict]]:
+    """Fetch English meanings and example sentences from kaikki.org. Caches in dictionary_cache table."""
+    # Check cache — re-fetch if examples column is NULL (old cache entry)
     row = db.execute(
-        "SELECT en_senses FROM dictionary_cache WHERE word = ?", (infinitive,)
+        "SELECT en_senses, examples FROM dictionary_cache WHERE word = ?", (infinitive,)
     ).fetchone()
-    if row:
+    if row and row["examples"] is not None:
         import json as json_mod
-        return json_mod.loads(row["en_senses"])
+        return json_mod.loads(row["en_senses"]), json_mod.loads(row["examples"])
 
     # Fetch from kaikki.org
     try:
@@ -65,6 +65,8 @@ def get_meaning(infinitive: str, db) -> list[str]:
         raw = urllib.request.urlopen(url, timeout=10, context=ssl_ctx).read().decode("utf-8")
 
         senses = []
+        examples = []
+        seen_texts = set()
         for line in raw.splitlines():
             if not line.strip():
                 continue
@@ -75,16 +77,25 @@ def get_meaning(infinitive: str, db) -> list[str]:
                 for gloss in sense.get("glosses", []):
                     if gloss and gloss not in senses:
                         senses.append(gloss)
+                if len(examples) < 2:
+                    for ex in sense.get("examples", []):
+                        txt = ex.get("text", "").strip()
+                        eng = ex.get("english", "").strip()
+                        if txt and txt not in seen_texts:
+                            seen_texts.add(txt)
+                            examples.append({"text": txt, "english": eng})
+                        if len(examples) >= 2:
+                            break
 
         # Cache result
         import json as json_mod
         db.execute(
-            "INSERT OR REPLACE INTO dictionary_cache (word, en_senses) VALUES (?, ?)",
-            (infinitive, json_mod.dumps(senses, ensure_ascii=False))
+            "INSERT OR REPLACE INTO dictionary_cache (word, en_senses, examples) VALUES (?, ?, ?)",
+            (infinitive, json_mod.dumps(senses, ensure_ascii=False), json_mod.dumps(examples, ensure_ascii=False))
         )
         db.commit()
-        return senses
+        return senses, examples
 
     except Exception as e:
         logger.warning(f"Could not fetch meaning for {infinitive}: {e}")
-        return []
+        return [], []

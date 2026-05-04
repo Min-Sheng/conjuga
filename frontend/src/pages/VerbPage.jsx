@@ -1,11 +1,59 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import MoodSection from '../components/MoodSection'
 import { addRecent, removeRecent } from '../utils/recent'
+import { getTenseZh, getMoodZh } from '../utils/tenseLabels'
 
 const MOOD_ORDER = ['indicativo', 'condicional', 'subjuntivo', 'imperativo', 'infinitivo', 'gerundio', 'participo']
+
+function buildFormIndex(conjugations) {
+  const index = {}
+  for (const [mood, tenses] of Object.entries(conjugations)) {
+    for (const [tense, persons] of Object.entries(tenses)) {
+      for (const { person, form } of persons) {
+        const key = form.toLowerCase()
+        if (!index[key]) index[key] = []
+        index[key].push({ mood, tense, person })
+      }
+    }
+  }
+  return index
+}
+
+function AnnotatedExample({ text, formIndex }) {
+  const [activeToken, setActiveToken] = useState(null)
+
+  const tokens = text.match(/[\wáéíóúüñÁÉÍÓÚÜÑ¿¡]+|[^[\wáéíóúüñÁÉÍÓÚÜÑ¿¡]+/g) || []
+
+  return (
+    <>
+      {tokens.map((token, i) => {
+        const clean = token.replace(/^[¿¡«"']+|[.,:;!?»"']+$/g, '').toLowerCase()
+        const matches = formIndex[clean]
+
+        if (matches?.length > 0) {
+          return (
+            <span key={i} style={{ position: 'relative', display: 'inline' }} onMouseEnter={() => setActiveToken(i)} onMouseLeave={() => setActiveToken(null)}>
+              <span style={{ color: 'var(--accent)', textDecoration: 'underline', textDecorationStyle: 'dotted', cursor: 'default', fontStyle: 'italic', fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                {token}
+              </span>
+              {activeToken === i && (
+                <div style={{ position: 'absolute', bottom: 'calc(100% + 4px)', left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: '#fff', borderRadius: 8, padding: '6px 10px', fontSize: 12, whiteSpace: 'nowrap', zIndex: 100, pointerEvents: 'none', fontFamily: 'var(--font-ui)', fontStyle: 'normal', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+                  {matches.map((m, mi) => (
+                    <div key={mi}>{getMoodZh(m.mood)} · {getTenseZh(m.mood, m.tense)}{m.person ? ` · ${m.person}` : ''}</div>
+                  ))}
+                </div>
+              )}
+            </span>
+          )
+        }
+        return <span key={i} style={{ fontStyle: 'italic', fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--ink)' }}>{token}</span>
+      })}
+    </>
+  )
+}
 
 export default function VerbPage() {
   const { infinitive: raw } = useParams()
@@ -34,6 +82,8 @@ export default function VerbPage() {
     mutationFn: () => api.deleteVocab(data.infinitive),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vocab'] }),
   })
+
+  const formIndex = useMemo(() => data ? buildFormIndex(data.conjugations) : {}, [data])
 
   return (
     <div style={{ minHeight: '100vh', paddingBottom: 'calc(80px + var(--safe-bot))' }}>
@@ -93,6 +143,29 @@ export default function VerbPage() {
               </button>
             </div>
           </div>
+
+          {/* Example sentences */}
+          {data.examples?.length > 0 && (
+            <div style={{ padding: '0 16px 4px' }}>
+              <div className="card animate-up" style={{ padding: '16px 20px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12, fontFamily: 'var(--font-ui)' }}>
+                  例句
+                </div>
+                {data.examples.map((ex, i) => (
+                  <div key={i} style={{ marginBottom: i < data.examples.length - 1 ? 14 : 0 }}>
+                    <div style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 3 }}>
+                      <AnnotatedExample text={ex.text} formIndex={formIndex} />
+                    </div>
+                    {ex.english && (
+                      <div style={{ fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-ui)' }}>
+                        {ex.english}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Conjugations */}
           <div style={{ padding: '12px 16px' }}>
