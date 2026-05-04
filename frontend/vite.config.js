@@ -10,8 +10,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Verbo — 西班牙文動詞',
-        short_name: 'Verbo',
+        name: 'Conjuga — 西班牙文動詞',
+        short_name: 'Conjuga',
         description: '西班牙文動詞變化學習',
         theme_color: '#0071E3',
         background_color: '#F5F5F7',
