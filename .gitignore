@@ -33,4 +33,5 @@ dist/
 kaikki.org-dictionary-Spanish.jsonl
 
 # Tool artifacts
+.claude/
 .superpowers/

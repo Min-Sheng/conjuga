@@ -1,203 +1,198 @@
 # Conjuga — 西班牙文動詞學習
 
-行動優先的西班牙文動詞學習 PWA，核心功能是依據 SRS（間隔重複）演算法安排測驗。
+Conjuga 是一個專為解決「西班牙文動詞變化繁複」而設計的學習應用程式。
+
+它採用了漸進式網頁應用程式 (PWA) 技術。PWA 讓這個網站可以像一般 App 一樣「加到手機主畫面」，不需要透過應用程式商店下載，也能擁有獨立的圖示、隱藏瀏覽器網址列，並且支援離線快取，提供接近原生 App 的流暢操作體驗。
+
+本專案的核心特色在於結合了「間隔重複系統 (SRS)」，以科學化的方式為你安排測驗，幫助你將動詞變化穩固地轉化為長期記憶。
 
 ---
 
-## 功能特色
+## 核心功能特色
 
-| 功能 | 說明 |
-|---|---|
-| 任意變化形查詢 | 輸入 *hablo*、*fueron*、*dijiste* 等，自動還原原形並顯示英文釋義 |
-| 完整時態展示 | 22 個時態完整人稱變化，依語氣分組折疊；人稱合併顯示（*él / ella* 同形時合一行）|
-| 單字庫 | 加入常用動詞；時態熟悉度以語氣色標圓點顯示，hover/點擊顯示時態全名 |
-| SRS 測驗 | 可選時態、選單字；多選題（新詞）自動升為填空（熟悉後）；答題正確率決定熟悉度 |
-| 帳戶管理 | Email 密碼 + Google OAuth；修改暱稱、改密碼 |
-| PWA | 可加入主畫面，支援離線快取 |
+- **智慧動詞反查**
+  無論輸入什麼時態的變形（例如 *hablo*、*fueron*、*dijiste*），系統都能自動還原為動詞原形，並顯示詳細的英文釋義。
+
+- **完整時態展示**
+  提供 22 個時態的完整人稱變化表。介面會依據語氣自動分組與折疊，並智慧合併同形的人稱（例如 *él / ella*），讓畫面保持簡潔。
+
+- **個人化單字庫與熟悉度追蹤**
+  你可以將常用動詞加入專屬單字庫。系統會透過不同顏色的標示，視覺化呈現你對各個時態的熟悉程度。
+
+- **科學化 SRS 測驗**
+  可針對特定時態或單字進行測驗。演算法會自動調適難度：對於新學習的字彙會提供多選題，當你逐漸熟悉後，則會自動升級為填空題。
+
+- **帳戶系統與跨平台支援**
+  支援 Email 密碼與 Google OAuth 登入。修改暱稱與密碼功能完善。得益於 PWA 特性，可安裝至主畫面並支援離線使用。
 
 ---
 
 ## 技術棧
 
-| 層級 | 選用 |
+| 領域 | 使用技術 |
 |---|---|
-| 後端 | FastAPI · Python 3.11+ |
-| 前端 | React 19 · Vite · Tailwind CSS v4 |
-| 資料庫 | SQLite（raw sqlite3，無 ORM）|
-| 動詞資料 | [verbecc](https://github.com/bretttolbert/verbecc)（9,732 個西班牙文動詞）|
-| 反向查詢 | [simplemma](https://github.com/adbar/simplemma)（任意變化形 → 原形）|
-| 字典 | [kaikki.org](https://kaikki.org) 英文釋義，per-word 按需擷取並快取 |
-| 測驗排程 | 正確率閾值（≥ 80% × 5 次 = 已熟悉；< 40% = 需加強）|
-| 認證 | python-jose (JWT) · bcrypt · Google OAuth 2.0 |
-| PWA | vite-plugin-pwa |
+| **後端** | FastAPI · Python 3.11+ |
+| **前端** | React 19 · Vite · Tailwind CSS v4 |
+| **資料庫** | SQLite（無 ORM，使用 raw sqlite3）|
+| **自然語言處理** | [verbecc](https://github.com/bretttolbert/verbecc)（變化產生）、[simplemma](https://github.com/adbar/simplemma)（反向查詢）|
+| **字典來源** | [kaikki.org](https://kaikki.org)（按需擷取英文釋義並快取）|
+| **測驗排程** | 自訂 SRS 演算法（依據正確率閾值判斷熟悉度） |
+| **安全與認證** | python-jose (JWT) · bcrypt · Google OAuth 2.0 |
+| **PWA 支援** | vite-plugin-pwa |
 
 ---
 
-## 快速啟動
+## 快速啟動指南
 
 ### 前置需求
 
-- Python 3.11 以上（建議 3.12）
-- Node.js 18 以上
+- Python 3.11 或以上版本（建議使用 3.12）
+- Node.js 18 或以上版本
 
-### 1. 後端
+### 1. 後端架設
 
 ```bash
 cd backend
 
-# 建立虛擬環境並安裝套件
+# 建立並啟動虛擬環境
 python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate        # Windows 環境請使用: .venv\Scripts\activate
+
+# 安裝相依套件
 pip install -r requirements.txt
 
 # 設定環境變數
 cp ../.env.example .env
-# 至少修改 SECRET_KEY（可用 python3 -c "import secrets; print(secrets.token_hex(32))" 產生）
+# 請務必修改 .env 檔案中的 SECRET_KEY 
+# （可使用指令快速產生：python3 -c "import secrets; print(secrets.token_hex(32))"）
 
-# 啟動開發伺服器（port 8000）
+# 啟動開發伺服器 (Port: 8000)
 ./run.sh
-# 或
-.venv/bin/uvicorn app.main:app --reload
+# 或是手動執行: .venv/bin/uvicorn app.main:app --reload
 ```
+API 文件 (Swagger UI) 測試網址：http://localhost:8000/docs
 
-Swagger UI：http://localhost:8000/docs
-
-### 2. 前端
+### 2. 前端架設
 
 ```bash
 cd frontend
 npm install
-npm run dev      # 開發伺服器，port 5173，自動 proxy /api → :8000
+
+# 啟動開發伺服器 (Port: 5173，將自動把 /api 請求代理至後端 8000 port)
+npm run dev
 ```
-
-開啟 http://localhost:5173
+前端應用程式網址：http://localhost:5173
 
 ---
 
-## 環境變數
+## 環境變數設定
 
-位於 `backend/.env`（從 `.env.example` 複製）：
+後端所需環境變數位於 `backend/.env`（請從 `.env.example` 複製）：
 
-| 變數 | 預設值 | 說明 |
+| 變數名稱 | 預設值 | 說明 |
 |---|---|---|
-| `SECRET_KEY` | `change-me-in-production` | JWT 簽名金鑰，**生產環境必須替換** |
-| `GOOGLE_CLIENT_ID` | （空） | Google OAuth Client ID，留空則停用 Google 登入 |
+| `SECRET_KEY` | `change-me-in-production` | JWT 簽名金鑰，**生產環境請務必修改** |
+| `GOOGLE_CLIENT_ID` | （空） | Google OAuth Client ID（留空代表停用 Google 登入） |
 | `GOOGLE_CLIENT_SECRET` | （空） | Google OAuth Client Secret |
-| `FRONTEND_URL` | `http://localhost:5173` | OAuth callback redirect 目標 |
-| `BACKEND_URL` | `http://localhost:8000` | OAuth callback 接收端 |
-| `DATABASE_URL` | `app.db` | SQLite 資料庫路徑（相對於 `backend/`）|
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080`（7 天）| JWT 有效期 |
+| `FRONTEND_URL` | `http://localhost:5173` | OAuth 登入成功後導向的前端網址 |
+| `BACKEND_URL` | `http://localhost:8000` | 處理 OAuth 回調的後端網址 |
+| `DATABASE_URL` | `app.db` | SQLite 資料庫檔案路徑（相對於 `backend/` 目錄）|
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080`（7 天）| JWT 憑證有效時間 |
 
-### 設定 Google OAuth（選用）
+### 設定 Google OAuth（選用功能）
 
-1. 前往 [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → Credentials
-2. 建立 OAuth 2.0 用戶端 ID（應用程式類型：網頁應用程式）
-3. 授權重新導向 URI 加入：`http://localhost:8000/auth/google/callback`
-4. 將 Client ID / Secret 填入 `backend/.env`
+1. 前往 [Google Cloud Console](https://console.cloud.google.com) → API 和服務 → 憑證。
+2. 建立「OAuth 2.0 用戶端 ID」（應用程式類型請選擇：網頁應用程式）。
+3. 在「已授權的重新導向 URI」中加入：`http://localhost:8000/auth/google/callback`。
+4. 將取得的 Client ID 與 Client Secret 填入 `backend/.env` 檔案中。
 
 ---
 
-## 字典預建（選用）
+## 字典預建快取（進階選項）
 
-App 預設在查詢時向 kaikki.org 逐字擷取英文釋義並快取。如需完全離線或一次性預建快取，可執行：
+系統預設會在使用者查詢單字時，才向 kaikki.org 擷取字彙並進行快取。如果您希望應用程式能完全離線運作，可以手動一次性預建字典：
 
 ```bash
 cd backend
 python scripts/build_dictionary.py --db app.db
 ```
 
-這會下載完整的 kaikki.org 西班牙文詞典（~900 MB，下載後置於 `scripts/` 目錄），解析所有動詞條目，並將釋義寫入 `app.db` 的 `dictionary_cache` 資料表。
+此腳本會下載完整的 kaikki.org 西班牙文詞典（約 900 MB），解析所有動詞後寫入 `app.db` 的 `dictionary_cache` 資料表中。
 
-```
-選項：
-  --db PATH           目標資料庫路徑（預設：app.db）
-  --skip-download     跳過下載，直接從已有的 dump 檔處理
-```
+**可用選項：**
+- `--db PATH`：指定目標資料庫路徑（預設：app.db）
+- `--skip-download`：略過下載，直接從本地已有的檔案處理
 
 ---
 
-## 專案結構
+## 專案結構概覽
 
-```
+```text
 espanol_learning_app/
 ├── .env.example                # 環境變數範本
 │
-├── backend/
+├── backend/                    # FastAPI 後端
 │   ├── app/
-│   │   ├── main.py             # FastAPI 入口，CORS，掛載路由
-│   │   ├── database.py         # SQLite 連線、schema 初始化
-│   │   ├── config.py           # 環境變數載入
-│   │   ├── auth/               # 認證：JWT、bcrypt、Google OAuth
-│   │   ├── verbs/              # 動詞查詢：simplemma 反向查詢、verbecc 變化
-│   │   ├── vocabulary/         # 單字庫 CRUD、SRS 卡片建立
-│   │   └── srs/                # 測驗：卡片排程、正確率計算、答題處理
-│   ├── scripts/
-│   │   ├── build_dictionary.py # 預建英文字典快取（選用）
-│   │   ├── verify_verbecc.py   # verbecc API 參考腳本
-│   │   ├── verify_dict.py      # kaikki.org 按需擷取參考腳本
-│   │   └── data/kaikki/        # 測試用範例 JSONL（hablar、ser 等）
+│   │   ├── main.py             # 程式進入點與路由掛載
+│   │   ├── database.py         # SQLite 連線與資料表初始化
+│   │   ├── config.py           # 環境變數載入處理
+│   │   ├── auth/               # 認證邏輯 (JWT, Google OAuth)
+│   │   ├── verbs/              # 動詞反向查詢與時態變化邏輯
+│   │   ├── vocabulary/         # 使用者單字庫管理
+│   │   └── srs/                # SRS 測驗演算法與排程
+│   ├── scripts/                # 開發輔助工具與資料建置腳本
 │   ├── requirements.txt
-│   └── run.sh                  # 啟動開發伺服器的捷徑腳本
+│   └── run.sh                  # 後端啟動捷徑
 │
-└── frontend/
+└── frontend/                   # React + Vite 前端
     ├── index.html
-    ├── vite.config.js          # Vite + PWA + /api proxy
-    ├── public/                 # PWA 圖示
+    ├── vite.config.js          # Vite 配置與 PWA 設定
     └── src/
-        ├── App.jsx             # 路由、AuthContext
-        ├── api/client.js       # fetch wrapper + JWT 注入
-        ├── utils/
-        │   ├── tenseLabels.js  # 中西文時態名稱對照（共用）
-        │   └── recent.js       # 最近查詢 localStorage 工具
-        ├── components/
-        │   ├── NavBar.jsx      # 底部導覽列
-        │   ├── MoodSection.jsx # 可折疊時態區塊（含人稱合併邏輯）
-        │   └── ProfileModal.jsx# 帳號設定 modal
-        └── pages/
-            ├── AuthPage.jsx    # 登入 / 註冊
-            ├── SearchPage.jsx  # 搜尋首頁
-            ├── VerbPage.jsx    # 動詞詳細頁（完整變化表）
-            ├── VocabPage.jsx   # 單字庫（熟悉度圓點）
-            └── QuizPage.jsx    # SRS 測驗（時態選擇 → 單字選擇 → 答題）
+        ├── App.jsx             # 路由配置與全域狀態 (AuthContext)
+        ├── api/client.js       # 封裝的 API 請求與 JWT 攔截器
+        ├── components/         # 共用 UI 元件 (如 NavBar, 帳戶 Modal)
+        └── pages/              # 各功能主頁面 (搜尋、動詞詳細、單字庫、測驗)
 ```
 
 ---
 
 ## API 端點摘要
 
-完整互動文件：`http://localhost:8000/docs`
+完整互動文件請見開發伺服器的 Swagger UI：`http://localhost:8000/docs`
 
-```
+```text
 POST /auth/register          建立帳號
 POST /auth/login             登入，取得 JWT
 GET  /auth/google            Google OAuth 入口
 GET  /auth/google/callback   Google OAuth 回調
-GET  /auth/me                取得目前使用者
-PUT  /auth/me                更新暱稱 / 密碼
-GET  /auth/config            回傳 { google_oauth_enabled }
+GET  /auth/me                取得目前登入使用者資訊
+PUT  /auth/me                更新暱稱或密碼
+GET  /auth/config            回傳系統設定 { google_oauth_enabled }
 
-GET  /verbs/lookup?q=        查詢任意變化形，回傳原形 + 釋義 + 完整變化表
+GET  /verbs/lookup?q=        查詢任意動詞變形，回傳原形、釋義與完整變化表
 
-GET  /vocab                  取得單字庫（含各時態熟悉度）
-POST /vocab/{infinitive}     加入單字庫，自動建立 SRS 卡片
-DELETE /vocab/{infinitive}   移除單字及對應卡片
+GET  /vocab                  取得使用者單字庫（包含各時態熟悉度）
+POST /vocab/{infinitive}     將單字加入單字庫，並自動建立 SRS 測驗卡片
+DELETE /vocab/{infinitive}   移除單字及其對應的測驗卡片
 
-GET  /quiz/due               取得待複習卡片（支援時態、動詞篩選）
-POST /quiz/answer            提交答案，更新 SRS 排程
-GET  /quiz/stats             取得統計（總卡片數、今日待複習、連續天數）
+GET  /quiz/due               取得目前待複習的卡片（支援指定時態或動詞篩選）
+POST /quiz/answer            提交作答結果，更新 SRS 演算法排程
+GET  /quiz/stats             取得測驗統計數據（總卡片數、今日待複習、連續學習天數）
 ```
 
 ---
 
-## 熟悉度演算法
+## 熟悉度演算法說明
 
-每張卡片（一個動詞 × 一個時態 × 一個人稱）從 `quiz_log` 計算正確率：
+間隔重複系統 (SRS) 的運作核心在於精準紀錄使用者的作答狀況。
+每張字卡（由「動詞 × 時態 × 人稱」組成）會依據在 `quiz_log` 中的答題正確率被分類：
 
-| 狀態 | 判定條件 |
+| 學習狀態 | 判定條件 |
 |---|---|
-| 新學 | 從未作答 |
-| 需加強 | 任一人稱正確率 < 40% |
-| 練習中 | 有作答，尚未全部達到熟悉標準 |
-| 已熟悉 | **所有人稱**正確率 ≥ 80%，且各人稱作答 ≥ 5 次 |
+| **新學** | 從未作答過 |
+| **需加強** | 該卡片任一人稱的歷史作答正確率 < 40% |
+| **練習中** | 已有作答紀錄，但尚未達到完全熟悉的標準 |
+| **已熟悉** | **所有人稱**正確率皆 ≥ 80%，且各人稱至少被作答過 5 次 |
 
-測驗出題順序：正確率最低的卡片優先（新學卡片排最前）。
+**測驗出題邏輯：** 系統會優先挑選正確率最低（最不熟悉）的卡片進行測驗，其中「新學」的卡片會被排在最前面。
+
