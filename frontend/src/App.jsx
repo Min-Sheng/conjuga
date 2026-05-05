@@ -22,8 +22,8 @@ function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Handle OAuth callback: /auth/callback#token=...
+  // Synchronously extract token before React Router's <Navigate> changes the URL
+  useState(() => {
     if (window.location.pathname === '/auth/callback') {
       const hash = window.location.hash
       const match = hash.match(/token=([^&]+)/)
@@ -32,6 +32,9 @@ function AuthProvider({ children }) {
         window.history.replaceState({}, '', '/')
       }
     }
+  })
+
+  useEffect(() => {
 
     if (isAuthenticated()) {
       api.me()

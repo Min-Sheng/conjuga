@@ -72,10 +72,18 @@ def google_callback(
     oauth_state: str = Cookie(default=None),
     db=Depends(get_db_dep),
 ):
+    print(f"[Google Callback] code={code[:20]}..., state={state[:20]}..., oauth_state={oauth_state}")
     if not oauth_state or state != oauth_state:
+        print("[Google Callback] State mismatch!")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OAuth state")
 
-    info = exchange_google_code(code)
+    print("[Google Callback] Exchanging code for user info...")
+    try:
+        info = exchange_google_code(code)
+        print(f"[Google Callback] Got user info: {info['email']}")
+    except Exception as e:
+        print(f"[Google Callback] Error exchanging code: {e}")
+        raise
 
     # Try to find existing user by google_id or email
     row = db.execute(
@@ -101,6 +109,7 @@ def google_callback(
 
     token = create_token(user_id)
     redirect_url = f"{settings.FRONTEND_URL}/auth/callback#token={token}"
+    print(f"[Google Callback] Redirecting to: {redirect_url[:80]}...")
     return RedirectResponse(url=redirect_url)
 
 
@@ -121,12 +130,15 @@ def update_me(
     db=Depends(get_db_dep),
 ):
     if body.new_password is not None:
-        if not body.current_password:
-            raise HTTPException(status_code=400, detail="需要提供目前密碼")
         if not current_user.get("password_hash"):
-            raise HTTPException(status_code=400, detail="Google 登入帳號無法設定密碼")
-        if not verify_password(body.current_password, current_user["password_hash"]):
-            raise HTTPException(status_code=400, detail="目前密碼不正確")
+            # User logging in via Google for the first time setting a password
+            pass
+        else:
+            if not body.current_password:
+                raise HTTPException(status_code=400, detail="需要提供目前密碼")
+            if not verify_password(body.current_password, current_user["password_hash"]):
+                raise HTTPException(status_code=400, detail="目前密碼不正確")
+        
         db.execute(
             "UPDATE users SET password_hash = ? WHERE id = ?",
             (hash_password(body.new_password), current_user["id"]),

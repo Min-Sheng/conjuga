@@ -107,9 +107,9 @@ export default function ProfileModal({ onClose, onLogout }) {
         </div>
 
         {/* Password change */}
-        {!isGoogleOnly && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 12, fontFamily: 'var(--font-ui)' }}>修改密碼</div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 12, fontFamily: 'var(--font-ui)' }}>{isGoogleOnly ? '設定登入密碼' : '修改密碼'}</div>
+          {!isGoogleOnly && (
             <input
               className="input-field"
               style={{ marginBottom: 10 }}
@@ -118,31 +118,25 @@ export default function ProfileModal({ onClose, onLogout }) {
               value={curPwd}
               onChange={e => { setCurPwd(e.target.value); setPwdMsg(null) }}
             />
-            <input
-              className="input-field"
-              style={{ marginBottom: 10 }}
-              type="password"
-              placeholder="新密碼（至少 8 個字元）"
-              value={newPwd}
-              onChange={e => { setNewPwd(e.target.value); setPwdMsg(null) }}
-              minLength={8}
-            />
-            <button
-              onClick={savePassword}
-              disabled={pwdSaving || !curPwd || !newPwd || newPwd.length < 8}
-              style={{ width: '100%', padding: '12px', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', opacity: (pwdSaving || !curPwd || !newPwd || newPwd.length < 8) ? 0.5 : 1 }}
-            >
-              {pwdSaving ? '更新中…' : '更新密碼'}
-            </button>
-            {pwdMsg && <div style={{ marginTop: 6, fontSize: 12, color: pwdMsg.ok ? 'var(--success)' : 'var(--danger)', fontFamily: 'var(--font-ui)' }}>{pwdMsg.text}</div>}
-          </div>
-        )}
-
-        {isGoogleOnly && (
-          <div style={{ marginBottom: 20, padding: '12px 14px', background: 'var(--bg-2)', borderRadius: 10, fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-ui)' }}>
-            透過 Google 登入的帳號無法設定密碼
-          </div>
-        )}
+          )}
+          <input
+            className="input-field"
+            style={{ marginBottom: 10 }}
+            type="password"
+            placeholder={isGoogleOnly ? "設定密碼（至少 8 個字元）" : "新密碼（至少 8 個字元）"}
+            value={newPwd}
+            onChange={e => { setNewPwd(e.target.value); setPwdMsg(null) }}
+            minLength={8}
+          />
+          <button
+            onClick={savePassword}
+            disabled={pwdSaving || (!isGoogleOnly && !curPwd) || !newPwd || newPwd.length < 8}
+            style={{ width: '100%', padding: '12px', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', opacity: (pwdSaving || (!isGoogleOnly && !curPwd) || !newPwd || newPwd.length < 8) ? 0.5 : 1 }}
+          >
+            {pwdSaving ? '更新中…' : (isGoogleOnly ? '設定密碼' : '更新密碼')}
+          </button>
+          {pwdMsg && <div style={{ marginTop: 6, fontSize: 12, color: pwdMsg.ok ? 'var(--success)' : 'var(--danger)', fontFamily: 'var(--font-ui)' }}>{pwdMsg.text}</div>}
+        </div>
 
         <div style={{ height: 1, background: 'var(--border)', margin: '20px 0' }} />
 

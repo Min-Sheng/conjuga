@@ -105,6 +105,8 @@ def exchange_google_code(code: str) -> dict:
 
     Returns a dict with keys: google_id, email, display_name.
     """
+    print(f"[exchange_google_code] Exchanging code: {code[:20]}...")
+    print(f"[exchange_google_code] Redirect URI: {settings.BACKEND_URL}/auth/google/callback")
     token_resp = httpx.post(
         "https://oauth2.googleapis.com/token",
         data={
@@ -116,13 +118,18 @@ def exchange_google_code(code: str) -> dict:
         },
         timeout=10,
     )
+    print(f"[exchange_google_code] Token response status: {token_resp.status_code}")
+    print(f"[exchange_google_code] Token response body: {token_resp.text}")
     try:
         token_resp.raise_for_status()
-    except httpx.HTTPStatusError:
+    except httpx.HTTPStatusError as e:
+        print(f"[exchange_google_code] Token exchange failed: {e}")
         raise HTTPException(status_code=502, detail="OAuth token exchange failed")
     try:
         access_token = token_resp.json()["access_token"]
-    except KeyError:
+        print(f"[exchange_google_code] Got access token: {access_token[:20]}...")
+    except KeyError as e:
+        print(f"[exchange_google_code] No access_token in response: {e}")
         raise HTTPException(status_code=502, detail="OAuth token exchange failed")
 
     userinfo_resp = httpx.get(
