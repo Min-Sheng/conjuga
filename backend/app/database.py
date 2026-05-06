@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT,
     google_id TEXT UNIQUE,
     display_name TEXT NOT NULL,
+    reset_token TEXT,
+    reset_token_expires DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -68,6 +70,11 @@ def init_db() -> None:
             conn.execute("ALTER TABLE dictionary_cache ADD COLUMN examples TEXT")
         except Exception:
             pass  # column already exists
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN reset_token TEXT")
+            conn.execute("ALTER TABLE users ADD COLUMN reset_token_expires DATETIME")
+        except Exception:
+            pass  # columns already exist
         conn.commit()
 
 

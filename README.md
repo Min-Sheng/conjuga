@@ -76,7 +76,7 @@ API 文件 (Swagger UI) 測試網址：http://localhost:8000/docs
 
 ```bash
 cd frontend
-npm install
+npm install --legacy-peer-deps
 
 # 啟動開發伺服器 (Port: 5173，將自動把 /api 請求代理至後端 8000 port)
 npm run dev

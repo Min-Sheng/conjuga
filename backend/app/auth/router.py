@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Cookie, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
+import secrets
+from datetime import datetime, timedelta, timezone
 
-from app.auth.schemas import LoginIn, RegisterIn, TokenOut, UpdateProfileIn, UserOut
+from app.auth.schemas import (
+    LoginIn, RegisterIn, TokenOut, UpdateProfileIn, UserOut,
+    ForgotPasswordIn, ResetPasswordIn
+)
 from app.auth.service import (
     create_token,
     exchange_google_code,
@@ -9,6 +14,7 @@ from app.auth.service import (
     google_oauth_url,
     hash_password,
     verify_password,
+    send_reset_email,
 )
 from app.config import settings
 from app.database import get_db_dep
@@ -161,3 +167,57 @@ def update_me(
 @router.get("/config")
 def get_config():
     return {"google_oauth_enabled": bool(settings.GOOGLE_CLIENT_ID)}
+
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordIn, db=Depends(get_db_dep)):
+    row = db.execute("SELECT id FROM users WHERE email = ?", (body.email,)).fetchone()
+    if row:
+        reset_token = secrets.token_urlsafe(32)
+        expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        db.execute(
+            "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?",
+            (reset_token, expires, row["id"])
+        )
+        db.commit()
+        
+        reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+        send_reset_email(body.email, reset_link)
+
+    # Always return a generic message to prevent email enumeration
+    return {"message": "如果該信箱已註冊，重設密碼連結已發送至您的信箱。"}
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordIn, db=Depends(get_db_dep)):
+    row = db.execute(
+        "SELECT id, reset_token_expires FROM users WHERE reset_token = ?", 
+        (body.token,)
+    ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=400, detail="無效的重設連結。")
+
+    # Assuming sqlite DATETIME is stored as string 'YYYY-MM-DD HH:MM:SS.mmmmmm+00:00'
+    expires_str = row["reset_token_expires"]
+    if not expires_str:
+        raise HTTPException(status_code=400, detail="無效的重設連結。")
+
+    try:
+        expires = datetime.fromisoformat(expires_str)
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+    except ValueError:
+        # Fallback if the format is not standard isoformat
+        raise HTTPException(status_code=400, detail="無效的重設連結。")
+
+    if datetime.now(timezone.utc) > expires:
+        raise HTTPException(status_code=400, detail="重設連結已過期，請重新申請。")
+
+    db.execute(
+        "UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?",
+        (hash_password(body.new_password), row["id"])
+    )
+    db.commit()
+
+    return {"message": "密碼重設成功，請使用新密碼登入。"}

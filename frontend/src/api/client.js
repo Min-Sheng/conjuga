@@ -53,6 +53,8 @@ export const api = {
   me: () => request('GET', '/auth/me'),
   updateProfile: (data) => request('PUT', '/auth/me', data),
   getConfig: () => request('GET', '/auth/config'),
+  forgotPassword: (data) => request('POST', '/auth/forgot-password', data),
+  resetPassword: (data) => request('POST', '/auth/reset-password', data),
 
   // Verbs
   lookup: (q) => request('GET', `/verbs/lookup?q=${encodeURIComponent(q)}`),

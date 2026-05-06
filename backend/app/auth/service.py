@@ -1,4 +1,6 @@
 import secrets
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -148,3 +150,35 @@ def exchange_google_code(code: str) -> dict:
         "email": info["email"],
         "display_name": info.get("name") or info.get("email", "").split("@")[0],
     }
+
+# ---------------------------------------------------------------------------
+# Email helpers
+# ---------------------------------------------------------------------------
+
+def send_reset_email(to_email: str, reset_link: str):
+    """Sends a password reset email using SMTP."""
+    # Always print to console for development/debugging
+    print(f"\n========== PASSWORD RESET ==========")
+    print(f"To: {to_email}")
+    print(f"Link: {reset_link}")
+    print(f"====================================\n")
+
+    # Only attempt to send if SMTP_USERNAME is configured
+    if not settings.SMTP_USERNAME:
+        print("[Email] SMTP_USERNAME not configured. Skipping actual email dispatch.")
+        return
+
+    msg = MIMEText(f"請點擊以下連結重設您的密碼：\n\n{reset_link}\n\n如果您沒有發起此請求，請忽略這封信件。\n這份連結將在 1 小時後失效。")
+    msg["Subject"] = "Conjuga: 密碼重設請求"
+    msg["From"] = settings.SMTP_FROM_EMAIL
+    msg["To"] = to_email
+
+    try:
+        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+        print(f"[Email] Password reset email successfully sent to {to_email}")
+    except Exception as e:
+        print(f"[Email] Failed to send email to {to_email}: {e}")
+

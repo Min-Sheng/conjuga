@@ -86,6 +86,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const { login, register } = useAuth()
   const navigate = useNavigate()
@@ -93,11 +94,19 @@ export default function AuthPage() {
   const googleEnabled = appConfig?.google_oauth_enabled ?? true
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setError(''); setLoading(true)
+    e.preventDefault(); setError(''); setMessage(''); setLoading(true)
     try {
-      if (tab === 'login') await login(email, password)
-      else await register(email, password, name || email.split('@')[0])
-      navigate('/')
+      if (tab === 'login') {
+        await login(email, password)
+        navigate('/')
+      } else if (tab === 'register') {
+        await register(email, password, name || email.split('@')[0])
+        navigate('/')
+      } else if (tab === 'forgot') {
+        const res = await api.forgotPassword({ email })
+        setMessage(res.message || '重設連結已發送')
+        setTab('login')
+      }
     } catch (err) { setError(err.message || '發生錯誤，請再試一次') }
     finally { setLoading(false) }
   }
@@ -115,9 +124,11 @@ export default function AuthPage() {
 
       <div style={S.card} className="animate-up delay-1">
         <div style={S.tabBar}>
-          <button style={S.tab(tab === 'login')} onClick={() => { setTab('login'); setError('') }}>登入</button>
-          <button style={S.tab(tab === 'register')} onClick={() => { setTab('register'); setError('') }}>註冊</button>
+          <button style={S.tab(tab === 'login')} onClick={() => { setTab('login'); setError(''); setMessage('') }}>登入</button>
+          <button style={S.tab(tab === 'register')} onClick={() => { setTab('register'); setError(''); setMessage('') }}>註冊</button>
         </div>
+
+        {message && <div style={{...S.errBox, background: 'var(--success-bg, #e6f4ea)', color: 'var(--success, #1e8e3e)', borderColor: 'rgba(30,142,62,.2)'}}>{message}</div>}
 
         <form onSubmit={handleSubmit}>
           {tab === 'register' && (
@@ -130,33 +141,49 @@ export default function AuthPage() {
             <label style={S.label}>電子郵件</label>
             <input className="input-field" type="email" placeholder="email@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={S.label}>密碼{tab === 'register' && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> (至少 8 個字元)</span>}</label>
-            <input className="input-field" type="password" placeholder={tab === 'register' ? '至少 8 個字元' : '密碼'} value={password} onChange={e => setPassword(e.target.value)} required minLength={tab === 'register' ? 8 : undefined} />
-          </div>
+          {tab !== 'forgot' && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={S.label}>密碼{tab === 'register' && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> (至少 8 個字元)</span>}</label>
+                {tab === 'login' && (
+                  <button type="button" onClick={() => { setTab('forgot'); setError(''); setMessage('') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, cursor: 'pointer', padding: 0 }}>忘記密碼？</button>
+                )}
+              </div>
+              <input className="input-field" type="password" placeholder={tab === 'register' ? '至少 8 個字元' : '密碼'} value={password} onChange={e => setPassword(e.target.value)} required minLength={tab === 'register' ? 8 : undefined} />
+            </div>
+          )}
           {error && <div style={S.errBox}>{error}</div>}
           <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? '處理中…' : tab === 'login' ? '登入' : '建立帳號'}
+            {loading ? '處理中…' : tab === 'login' ? '登入' : tab === 'forgot' ? '發送重設連結' : '建立帳號'}
           </button>
+          {tab === 'forgot' && (
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <button type="button" onClick={() => { setTab('login'); setError(''); setMessage('') }} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}>返回登入</button>
+            </div>
+          )}
         </form>
 
-        <div style={S.divider}>
-          <div style={S.dividerLine} /><span style={S.dividerText}>或</span><div style={S.dividerLine} />
-        </div>
+        {tab !== 'forgot' && (
+          <>
+            <div style={S.divider}>
+              <div style={S.dividerLine} /><span style={S.dividerText}>或</span><div style={S.dividerLine} />
+            </div>
 
-        <button
-          style={{ ...S.goog, opacity: googleEnabled ? 1 : 0.45, cursor: googleEnabled ? 'pointer' : 'not-allowed' }}
-          onClick={() => googleEnabled && (window.location.href = '/api/auth/google')}
-          title={googleEnabled ? undefined : 'Google 登入尚未設定'}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-          </svg>
-          {googleEnabled ? '使用 Google 登入' : 'Google 登入（尚未設定）'}
-        </button>
+            <button
+              style={{ ...S.goog, opacity: googleEnabled ? 1 : 0.45, cursor: googleEnabled ? 'pointer' : 'not-allowed' }}
+              onClick={() => googleEnabled && (window.location.href = '/api/auth/google')}
+              title={googleEnabled ? undefined : 'Google 登入尚未設定'}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+                <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+              </svg>
+              {googleEnabled ? '使用 Google 登入' : 'Google 登入（尚未設定）'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

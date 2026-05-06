@@ -5,6 +5,7 @@ import { api, setToken, clearToken, isAuthenticated } from './api/client'
 
 // Pages
 import AuthPage from './pages/AuthPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import SearchPage from './pages/SearchPage'
 import VerbPage from './pages/VerbPage'
 import VocabPage from './pages/VocabPage'
@@ -100,6 +101,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth/callback" element={<Navigate to="/" replace />} />
             <Route path="/" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
             <Route path="/verb/:infinitive" element={<ProtectedRoute><VerbPage /></ProtectedRoute>} />
