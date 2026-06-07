@@ -1,9 +1,0 @@
-verbecc>=2.0
-fastapi
-uvicorn[standard]
-python-jose[cryptography]
-bcrypt
-httpx
-python-multipart
-python-dotenv
-simplemma

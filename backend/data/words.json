@@ -1,0 +1,421 @@
+[
+  {
+    "word": "casa",
+    "part": "sustantivo",
+    "zh": "房子、家",
+    "en": "house, home",
+    "ipa": "/ˈkasa/",
+    "examples": [
+      {
+        "es": "Mi casa está cerca de la escuela.",
+        "zh": "我的家在學校附近。",
+        "en": "My house is near the school."
+      },
+      {
+        "es": "La casa tiene una puerta azul.",
+        "zh": "這棟房子有一扇藍色的門。",
+        "en": "The house has a blue door."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "sustantivo"
+    ],
+    "acceptedAnswers": [
+      "casa"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "agua",
+    "part": "sustantivo",
+    "zh": "水",
+    "en": "water",
+    "ipa": "/ˈaɣwa/",
+    "examples": [
+      {
+        "es": "Quiero un vaso de agua.",
+        "zh": "我想要一杯水。",
+        "en": "I want a glass of water."
+      },
+      {
+        "es": "El agua está fría.",
+        "zh": "水是冰的。",
+        "en": "The water is cold."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "sustantivo"
+    ],
+    "acceptedAnswers": [
+      "agua"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "comer",
+    "part": "verbo",
+    "zh": "吃",
+    "en": "to eat",
+    "ipa": "/koˈmeɾ/",
+    "examples": [
+      {
+        "es": "Vamos a comer arroz con pollo.",
+        "zh": "我們要吃雞肉飯。",
+        "en": "We are going to eat rice with chicken."
+      },
+      {
+        "es": "Me gusta comer fruta por la mañana.",
+        "zh": "我喜歡早上吃水果。",
+        "en": "I like to eat fruit in the morning."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "verbo"
+    ],
+    "acceptedAnswers": [
+      "comer"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "feliz",
+    "part": "adjetivo",
+    "zh": "快樂的、幸福的",
+    "en": "happy",
+    "ipa": "/feˈliθ/ /feˈlis/",
+    "examples": [
+      {
+        "es": "Estoy feliz hoy.",
+        "zh": "我今天很快樂。",
+        "en": "I am happy today."
+      },
+      {
+        "es": "Ella tiene una familia feliz.",
+        "zh": "她有一個幸福的家庭。",
+        "en": "She has a happy family."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "adjetivo"
+    ],
+    "acceptedAnswers": [
+      "feliz"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "escuela",
+    "part": "sustantivo",
+    "zh": "學校",
+    "en": "school",
+    "ipa": "/esˈkwela/",
+    "examples": [
+      {
+        "es": "Los niños van a la escuela.",
+        "zh": "孩子們去上學。",
+        "en": "The children go to school."
+      },
+      {
+        "es": "Mi escuela es grande.",
+        "zh": "我的學校很大。",
+        "en": "My school is big."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "sustantivo"
+    ],
+    "acceptedAnswers": [
+      "escuela"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "libro",
+    "part": "sustantivo",
+    "zh": "書",
+    "en": "book",
+    "ipa": "/ˈliβɾo/",
+    "examples": [
+      {
+        "es": "Leo un libro en español.",
+        "zh": "我讀一本西班牙文書。",
+        "en": "I read a book in Spanish."
+      },
+      {
+        "es": "Este libro es interesante.",
+        "zh": "這本書很有趣。",
+        "en": "This book is interesting."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "sustantivo"
+    ],
+    "acceptedAnswers": [
+      "libro"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "amigo",
+    "part": "sustantivo",
+    "zh": "朋友",
+    "en": "friend",
+    "ipa": "/aˈmiɣo/",
+    "examples": [
+      {
+        "es": "Mi amigo vive en Madrid.",
+        "zh": "我的朋友住在馬德里。",
+        "en": "My friend lives in Madrid."
+      },
+      {
+        "es": "Hablo con mi amigo todos los días.",
+        "zh": "我每天和朋友聊天。",
+        "en": "I talk with my friend every day."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "sustantivo"
+    ],
+    "acceptedAnswers": [
+      "amigo"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "grande",
+    "part": "adjetivo",
+    "zh": "大的",
+    "en": "big, large",
+    "ipa": "/ˈɡɾande/",
+    "examples": [
+      {
+        "es": "El parque es grande.",
+        "zh": "這座公園很大。",
+        "en": "The park is big."
+      },
+      {
+        "es": "Necesito una mesa grande.",
+        "zh": "我需要一張大桌子。",
+        "en": "I need a large table."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "adjetivo"
+    ],
+    "acceptedAnswers": [
+      "grande"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "pequeño",
+    "part": "adjetivo",
+    "zh": "小的",
+    "en": "small, little",
+    "ipa": "/peˈkeɲo/",
+    "examples": [
+      {
+        "es": "Tengo un perro pequeño.",
+        "zh": "我有一隻小狗。",
+        "en": "I have a small dog."
+      },
+      {
+        "es": "El cuarto es pequeño pero cómodo.",
+        "zh": "房間雖小但舒適。",
+        "en": "The room is small but comfortable."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "adjetivo"
+    ],
+    "acceptedAnswers": [
+      "pequeño",
+      "pequeña",
+      "pequeños",
+      "pequeñas"
+    ],
+    "nearAnswers": [
+      "chico",
+      "chica"
+    ]
+  },
+  {
+    "word": "trabajar",
+    "part": "verbo",
+    "zh": "工作",
+    "en": "to work",
+    "ipa": "/tɾaβaˈxaɾ/",
+    "examples": [
+      {
+        "es": "Trabajo en una oficina.",
+        "zh": "我在辦公室工作。",
+        "en": "I work in an office."
+      },
+      {
+        "es": "Ella quiere trabajar mañana.",
+        "zh": "她明天想工作。",
+        "en": "She wants to work tomorrow."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "verbo"
+    ],
+    "acceptedAnswers": [
+      "trabajar"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "hablar",
+    "part": "verbo",
+    "zh": "說、談話",
+    "en": "to speak, to talk",
+    "ipa": "/aˈβlaɾ/",
+    "examples": [
+      {
+        "es": "Puedo hablar un poco de español.",
+        "zh": "我會說一點西班牙文。",
+        "en": "I can speak a little Spanish."
+      },
+      {
+        "es": "Vamos a hablar después de clase.",
+        "zh": "我們下課後再談。",
+        "en": "We will talk after class."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "verbo"
+    ],
+    "acceptedAnswers": [
+      "hablar"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "viajar",
+    "part": "verbo",
+    "zh": "旅行",
+    "en": "to travel",
+    "ipa": "/bjaˈxaɾ/",
+    "examples": [
+      {
+        "es": "Me gusta viajar en tren.",
+        "zh": "我喜歡搭火車旅行。",
+        "en": "I like to travel by train."
+      },
+      {
+        "es": "Queremos viajar a México.",
+        "zh": "我們想去墨西哥旅行。",
+        "en": "We want to travel to Mexico."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "verbo"
+    ],
+    "acceptedAnswers": [
+      "viajar"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "tiempo",
+    "part": "sustantivo",
+    "zh": "時間；天氣",
+    "en": "time; weather",
+    "ipa": "/ˈtjempo/",
+    "examples": [
+      {
+        "es": "No tengo mucho tiempo.",
+        "zh": "我沒有很多時間。",
+        "en": "I do not have much time."
+      },
+      {
+        "es": "El tiempo está muy bueno.",
+        "zh": "天氣非常好。",
+        "en": "The weather is very good."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "sustantivo"
+    ],
+    "acceptedAnswers": [
+      "tiempo"
+    ],
+    "nearAnswers": []
+  },
+  {
+    "word": "bonito",
+    "part": "adjetivo",
+    "zh": "漂亮的、好看的",
+    "en": "pretty, nice",
+    "ipa": "/boˈnito/",
+    "examples": [
+      {
+        "es": "Es un vestido bonito.",
+        "zh": "這是一件漂亮的洋裝。",
+        "en": "It is a pretty dress."
+      },
+      {
+        "es": "La ciudad es muy bonita.",
+        "zh": "這座城市很美。",
+        "en": "The city is very beautiful."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "adjetivo"
+    ],
+    "acceptedAnswers": [
+      "bonito",
+      "bonita",
+      "bonitos",
+      "bonitas"
+    ],
+    "nearAnswers": [
+      "hermoso",
+      "hermosa",
+      "lindo",
+      "linda"
+    ]
+  },
+  {
+    "word": "comprar",
+    "part": "verbo",
+    "zh": "買、購買",
+    "en": "to buy",
+    "ipa": "/komˈpɾaɾ/",
+    "examples": [
+      {
+        "es": "Voy a comprar pan.",
+        "zh": "我要去買麵包。",
+        "en": "I am going to buy bread."
+      },
+      {
+        "es": "Ella compra café cada mañana.",
+        "zh": "她每天早上買咖啡。",
+        "en": "She buys coffee every morning."
+      }
+    ],
+    "level": "A1",
+    "tags": [
+      "verbo"
+    ],
+    "acceptedAnswers": [
+      "comprar"
+    ],
+    "nearAnswers": []
+  }
+]

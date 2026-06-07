@@ -1,0 +1,15 @@
+{
+  "name": "palabra-clara",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check routes.js && node --check services/learningService.js && node --check services/vocabularyService.js && node --check services/verbService.js",
+    "db:init": "node scripts/init-db.js",
+    "db:import": "node scripts/import-word-bank.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pg": "^8.13.1"
+  }
+}

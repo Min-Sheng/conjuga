@@ -1,198 +1,268 @@
-# Conjuga — 西班牙文動詞學習
+# Palabra Clara
 
-Conjuga 是一個專為解決「西班牙文動詞變化繁複」而設計的學習應用程式。
+西班牙文單字、動詞變位與間隔複習 app。
 
-它採用了漸進式網頁應用程式 (PWA) 技術。PWA 讓這個網站可以像一般 App 一樣「加到手機主畫面」，不需要透過應用程式商店下載，也能擁有獨立的圖示、隱藏瀏覽器網址列，並且支援離線快取，提供接近原生 App 的流暢操作體驗。
+## 功能
 
-本專案的核心特色在於結合了「間隔重複系統 (SRS)」，以科學化的方式為你安排測驗，幫助你將動詞變化穩固地轉化為長期記憶。
+- 西文單字查詢中文、英文詞義
+- 前後端分離：`frontend/` 放 UI，`backend/` 放 API 與服務串接
+- 使用 Postgres 儲存單字、例句、查詢紀錄、測驗紀錄與弱點進度
+- `backend/data/words.json` 保留作為初始匯入種子資料
+- 西班牙文單字發音播放，可接 Google Cloud Text-to-Speech，未設定金鑰時使用瀏覽器 Web Speech
+- 可用 MyMemory 或 Google Cloud Translation 取得中英文翻譯
+- 可用 FreeDictionaryAPI 補新單字詞性與 IPA 音標
+- 可用 Groq 或 OpenAI-compatible API 產生例句與模糊判讀
+- OCR 查詢單字功能已保留在程式碼中，目前先隱藏入口
+- 選擇題與填空題測驗
+- 填空題先用本地答案表判分，模糊答案可交給 AI 判讀
+- 答錯單字自動加入弱點複習與加權出題
+- React + Vite 前端，統一使用 Palabra Clara 設計系統
+- 動詞原形反查與完整時態變位，由獨立 Python NLP 服務提供
+- 動詞收藏儲存在 PostgreSQL
+- 單字查詢為統一入口；查到動詞或動詞變形時，詞條會自動擴增完整變位內容
+- 單字庫可切換全部、一般單字、動詞與收藏動詞
+- 一般單字測驗與動詞變位測驗分開，一般測驗也可選擇混入變位題
 
----
-
-## 核心功能特色
-
-- **智慧動詞反查**
-  無論輸入什麼時態的變形（例如 *hablo*、*fueron*、*dijiste*），系統都能自動還原為動詞原形，並顯示詳細的英文釋義。
-
-- **完整時態展示**
-  提供 22 個時態的完整人稱變化表。介面會依據語氣自動分組與折疊，並智慧合併同形的人稱（例如 *él / ella*），讓畫面保持簡潔。
-
-- **個人化單字庫與熟悉度追蹤**
-  你可以將常用動詞加入專屬單字庫。系統會透過不同顏色的標示，視覺化呈現你對各個時態的熟悉程度。
-
-- **科學化 SRS 測驗**
-  可針對特定時態或單字進行測驗。演算法會自動調適難度：對於新學習的字彙會提供多選題，當你逐漸熟悉後，則會自動升級為填空題。
-
-- **帳戶系統與跨平台支援**
-  支援 Email 密碼與 Google OAuth 登入。修改暱稱與密碼功能完善。得益於 PWA 特性，可安裝至主畫面並支援離線使用。
-
----
-
-## 技術棧
-
-| 領域 | 使用技術 |
-|---|---|
-| **後端** | FastAPI · Python 3.11+ |
-| **前端** | React 19 · Vite · Tailwind CSS v4 |
-| **資料庫** | SQLite（無 ORM，使用 raw sqlite3）|
-| **自然語言處理** | [verbecc](https://github.com/bretttolbert/verbecc)（變化產生）、[simplemma](https://github.com/adbar/simplemma)（反向查詢）|
-| **字典來源** | [kaikki.org](https://kaikki.org)（按需擷取英文釋義並快取）|
-| **測驗排程** | 自訂 SRS 演算法（依據正確率閾值判斷熟悉度） |
-| **安全與認證** | python-jose (JWT) · bcrypt · Google OAuth 2.0 |
-| **PWA 支援** | vite-plugin-pwa |
-
----
-
-## 快速啟動指南
-
-### 前置需求
-
-- Python 3.11 或以上版本（建議使用 3.12）
-- Node.js 18 或以上版本
-
-### 1. 後端架設
-
-```bash
-cd backend
-
-# 建立並啟動虛擬環境
-python3 -m venv .venv
-source .venv/bin/activate        # Windows 環境請使用: .venv\Scripts\activate
-
-# 安裝相依套件
-pip install -r requirements.txt
-
-# 設定環境變數
-cp ../.env.example .env
-# 請務必修改 .env 檔案中的 SECRET_KEY 
-# （可使用指令快速產生：python3 -c "import secrets; print(secrets.token_hex(32))"）
-
-# 啟動開發伺服器 (Port: 8000)
-./run.sh
-# 或是手動執行: .venv/bin/uvicorn app.main:app --reload
-```
-API 文件 (Swagger UI) 測試網址：http://localhost:8000/docs
-
-### 2. 前端架設
-
-```bash
-cd frontend
-npm install --legacy-peer-deps
-
-# 啟動開發伺服器 (Port: 5173，將自動把 /api 請求代理至後端 8000 port)
-npm run dev
-```
-前端應用程式網址：http://localhost:5173
-
----
-
-## 環境變數設定
-
-後端所需環境變數位於 `backend/.env`（請從 `.env.example` 複製）：
-
-| 變數名稱 | 預設值 | 說明 |
-|---|---|---|
-| `SECRET_KEY` | `change-me-in-production` | JWT 簽名金鑰，**生產環境請務必修改** |
-| `GOOGLE_CLIENT_ID` | （空） | Google OAuth Client ID（留空代表停用 Google 登入） |
-| `GOOGLE_CLIENT_SECRET` | （空） | Google OAuth Client Secret |
-| `FRONTEND_URL` | `http://localhost:5173` | OAuth 登入成功後導向的前端網址 |
-| `BACKEND_URL` | `http://localhost:8000` | 處理 OAuth 回調的後端網址 |
-| `DATABASE_URL` | `app.db` | SQLite 資料庫檔案路徑（相對於 `backend/` 目錄）|
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080`（7 天）| JWT 憑證有效時間 |
-
-### 設定 Google OAuth（選用功能）
-
-1. 前往 [Google Cloud Console](https://console.cloud.google.com) → API 和服務 → 憑證。
-2. 建立「OAuth 2.0 用戶端 ID」（應用程式類型請選擇：網頁應用程式）。
-3. 在「已授權的重新導向 URI」中加入：`http://localhost:8000/auth/google/callback`。
-4. 將取得的 Client ID 與 Client Secret 填入 `backend/.env` 檔案中。
-
----
-
-## 字典預建快取（進階選項）
-
-系統預設會在使用者查詢單字時，才向 kaikki.org 擷取字彙並進行快取。如果您希望應用程式能完全離線運作，可以手動一次性預建字典：
-
-```bash
-cd backend
-python scripts/build_dictionary.py --db app.db
-```
-
-此腳本會下載完整的 kaikki.org 西班牙文詞典（約 900 MB），解析所有動詞後寫入 `app.db` 的 `dictionary_cache` 資料表中。
-
-**可用選項：**
-- `--db PATH`：指定目標資料庫路徑（預設：app.db）
-- `--skip-download`：略過下載，直接從本地已有的檔案處理
-
----
-
-## 專案結構概覽
+## 整合後架構
 
 ```text
-espanol_learning_app/
-├── .env.example                # 環境變數範本
-│
-├── backend/                    # FastAPI 後端
-│   ├── app/
-│   │   ├── main.py             # 程式進入點與路由掛載
-│   │   ├── database.py         # SQLite 連線與資料表初始化
-│   │   ├── config.py           # 環境變數載入處理
-│   │   ├── auth/               # 認證邏輯 (JWT, Google OAuth)
-│   │   ├── verbs/              # 動詞反向查詢與時態變化邏輯
-│   │   ├── vocabulary/         # 使用者單字庫管理
-│   │   └── srs/                # SRS 測驗演算法與排程
-│   ├── scripts/                # 開發輔助工具與資料建置腳本
-│   ├── requirements.txt
-│   └── run.sh                  # 後端啟動捷徑
-│
-└── frontend/                   # React + Vite 前端
-    ├── index.html
-    ├── vite.config.js          # Vite 配置與 PWA 設定
-    └── src/
-        ├── App.jsx             # 路由配置與全域狀態 (AuthContext)
-        ├── api/client.js       # 封裝的 API 請求與 JWT 攔截器
-        ├── components/         # 共用 UI 元件 (如 NavBar, 帳戶 Modal)
-        └── pages/              # 各功能主頁面 (搜尋、動詞詳細、單字庫、測驗)
+Browser
+   |
+   v
+Frontend（Nginx + React）
+   |
+   v
+Backend（Node.js API）
+   |                 |
+   v                 v
+PostgreSQL       Spanish NLP
+                 Python + FastAPI
 ```
 
----
+- `frontend/`：React UI、Nginx 設定與前端 Dockerfile
+- `backend/`：Node API、學習流程、翻譯、語音、PostgreSQL 與後端 Dockerfile
+- `spanish-nlp/`：獨立的西班牙文詞形還原與動詞變位服務
 
-## API 端點摘要
+## 使用方式
 
-完整互動文件請見開發伺服器的 Swagger UI：`http://localhost:8000/docs`
+### 使用 Docker Compose（推薦）
+
+無需本機安裝 PostgreSQL，一行指令啟動完整環境：
+
+```bash
+docker compose up --build
+```
+
+首次執行會：
+- 分別構建前端、後端與 NLP 容器映像
+- 啟動 PostgreSQL 數據庫
+- 初始化數據庫結構與匯入種子單字
+- 啟動完整服務
+
+然後開啟瀏覽器訪問：
 
 ```text
-POST /auth/register          建立帳號
-POST /auth/login             登入，取得 JWT
-GET  /auth/google            Google OAuth 入口
-GET  /auth/google/callback   Google OAuth 回調
-GET  /auth/me                取得目前登入使用者資訊
-PUT  /auth/me                更新暱稱或密碼
-GET  /auth/config            回傳系統設定 { google_oauth_enabled }
-
-GET  /verbs/lookup?q=        查詢任意動詞變形，回傳原形、釋義與完整變化表
-
-GET  /vocab                  取得使用者單字庫（包含各時態熟悉度）
-POST /vocab/{infinitive}     將單字加入單字庫，並自動建立 SRS 測驗卡片
-DELETE /vocab/{infinitive}   移除單字及其對應的測驗卡片
-
-GET  /quiz/due               取得目前待複習的卡片（支援指定時態或動詞篩選）
-POST /quiz/answer            提交作答結果，更新 SRS 演算法排程
-GET  /quiz/stats             取得測驗統計數據（總卡片數、今日待複習、連續學習天數）
+http://localhost:4173
 ```
 
----
+**停止服務：**
+```bash
+docker compose down
+```
 
-## 熟悉度演算法說明
+**查看日誌：**
+```bash
+docker compose logs -f frontend backend nlp
+```
 
-間隔重複系統 (SRS) 的運作核心在於精準紀錄使用者的作答狀況。
-每張字卡（由「動詞 × 時態 × 人稱」組成）會依據在 `quiz_log` 中的答題正確率被分類：
+### 本地開發（需先安裝 PostgreSQL）
 
-| 學習狀態 | 判定條件 |
-|---|---|
-| **新學** | 從未作答過 |
-| **需加強** | 該卡片任一人稱的歷史作答正確率 < 40% |
-| **練習中** | 已有作答紀錄，但尚未達到完全熟悉的標準 |
-| **已熟悉** | **所有人稱**正確率皆 ≥ 80%，且各人稱至少被作答過 5 次 |
+第一次安裝依賴：
 
-**測驗出題邏輯：** 系統會優先挑選正確率最低（最不熟悉）的卡片進行測驗，其中「新學」的卡片會被排在最前面。
+```bash
+npm --prefix backend install
+npm --prefix frontend install
+```
 
+設定 `DATABASE_URL` 後初始化資料庫並匯入種子單字：
+
+```bash
+npm --prefix backend run db:init
+npm --prefix backend run db:import
+```
+
+分別啟動後端與前端：
+
+```bash
+npm --prefix backend start
+npm --prefix frontend run dev
+```
+
+然後開啟：
+
+```text
+http://localhost:5173
+```
+
+本地 Node API 使用 `http://localhost:3000`，Vite 會自動代理 `/api`。
+
+目前 React 版未開放 OCR 入口。
+
+## 專案結構
+
+```text
+espanol_palabra/
+  frontend/
+    Dockerfile
+    nginx.conf
+    index.html
+    package.json
+    styles.css
+    src/
+      App.jsx
+      api.js
+      main.jsx
+      verbLabels.js
+  backend/
+    Dockerfile
+    package.json
+    server.js
+    routes.js
+    db/
+      client.js
+      schema.sql
+    data/
+      words.json
+    scripts/
+      init-db.js
+      import-word-bank.js
+    services/
+      aiService.js
+      exampleService.js
+      judgeService.js
+      lookupService.js
+      speechService.js
+      translationService.js
+      wordBankService.js
+    utils/
+      http.js
+      text.js
+  spanish-nlp/
+    Dockerfile
+    requirements.txt
+    api.py
+```
+
+## 服務串接
+
+目前後端提供這些 API：
+
+- `GET /api/words`：讀取單字庫
+- `POST /api/lookup`：查詢單字，先查 Postgres 字庫，查不到時可用 MyMemory/Google 翻譯和 AI 例句
+- `POST /api/pronunciation`：可用 Google Cloud Text-to-Speech 產生發音，否則前端退回 Web Speech
+- `POST /api/examples`：可用 AI 產生例句
+- `POST /api/judge-answer`：填空題模糊答案 AI 判讀
+- `GET /api/verbs/lookup?q=fui`：反查原形並取得完整變位
+- `GET /api/verbs?learnerId=...`：取得收藏動詞
+- `POST /api/verbs/:infinitive`：收藏動詞
+- `DELETE /api/verbs/:infinitive?learnerId=...`：移除收藏
+
+設定方式可參考根目錄 `.env.example`。本機啟動與 Docker Compose 都會讀取根目錄 `.env`。
+
+## 免費服務設定
+
+翻譯預設使用 MyMemory：
+
+```env
+TRANSLATION_PROVIDER=mymemory
+MYMEMORY_EMAIL=
+```
+
+`MYMEMORY_EMAIL` 可不填；填 email 時 MyMemory 免費額度通常較高。若未來要改 Google：
+
+```env
+TRANSLATION_PROVIDER=google
+GOOGLE_TRANSLATE_API_KEY=...
+```
+
+AI 預設使用 Groq 的 OpenAI-compatible API：
+
+```env
+AI_PROVIDER=groq
+GROQ_API_KEY=...
+AI_MODEL=llama-3.1-8b-instant
+```
+
+也可以直接用 generic OpenAI-compatible 設定：
+
+```env
+AI_API_KEY=...
+AI_API_URL=https://api.groq.com/openai/v1/chat/completions
+AI_MODEL=llama-3.1-8b-instant
+```
+
+沒有設定 Groq/API key 時，例句生成與模糊判讀會使用本地 fallback，不會中斷查詢流程。
+
+詞性與 IPA 音標會在查詢新單字時用 FreeDictionaryAPI 補齊；如果查不到，詞性會保留 `unknown`，音標會保留 `待補`。
+
+## Postgres
+
+本專案執行時需要 Postgres。`backend/data/words.json` 只作為 seed 資料，不作為執行時資料庫。
+
+### 推薦：使用 Docker Compose
+
+最簡單的方式是用 Docker Compose（需先安裝 [Docker Desktop](https://www.docker.com/products/docker-desktop)）：
+
+```bash
+docker compose up --build
+```
+
+Postgres 與後端服務會自動啟動與配置，無需手動設定 `DATABASE_URL`。
+
+### 本機 Postgres
+
+如果已安裝本機 Postgres，設定環境變數：
+
+**PowerShell 範例：**
+
+```powershell
+$env:DATABASE_URL="postgres://postgres:postgres@localhost:5432/palabra_clara"
+$env:DATABASE_SSL="false"
+npm --prefix backend run db:init
+npm --prefix backend run db:import
+npm --prefix backend start
+```
+
+### Docker 單一容器
+
+或者手動用 Docker 啟動 Postgres（不用 docker-compose）：
+
+```bash
+docker run --name palabra-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=palabra_clara -p 5432:5432 -d postgres:16
+```
+
+### 雲端部署
+
+部署時可使用 Supabase 或 Neon 的免費 Postgres。將供應商提供的 connection string 設到 `DATABASE_URL`。多數雲端 Postgres 需要 SSL，保留 `DATABASE_SSL=true`。
+
+### 數據庫結構
+
+目前資料庫會保存：
+
+- `words`：單字主資料
+- `examples`：例句
+- `learners`：學習者 id，目前由瀏覽器產生匿名 id
+- `lookup_history`：查詢紀錄
+- `quiz_attempts`：測驗作答、分數與模糊判讀結果
+
+## 單字庫格式
+
+`backend/data/words.json` 是匯入 Postgres 的種子資料。每筆單字包含：
+
+- `word`：西班牙文單字
+- `part`：詞性
+- `zh` / `en`：中文、英文詞義
+- `ipa`：IPA 音標
+- `examples`：西文例句與中英翻譯
+- `acceptedAnswers`：填空題可直接判對的答案
+- `nearAnswers`：可接受但會提示目標字的同義或變化答案
