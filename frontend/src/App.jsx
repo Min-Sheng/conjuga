@@ -15,6 +15,10 @@ const makeId = () => globalThis.crypto?.randomUUID?.() || `learner-${Date.now()}
 const normalize = (value) =>
   String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const isVerb = (word) => normalize(word?.part) === "verbo" || (word?.tags || []).some((tag) => normalize(tag) === "verbo");
+const isInfinitiveVerb = (word) => {
+  const value = normalize(word?.word);
+  return isVerb(word) && /(?:ar|er|ir)(?:se)?$/.test(value);
+};
 
 async function speakSpanish(text) {
   try {
@@ -141,7 +145,7 @@ function Empty({ title, children }) {
   return <div className="ibv-empty-state"><h3 className="ibv-empty-h">{title}</h3><p className="ibv-empty-desc">{children}</p></div>;
 }
 
-function WordCard({ word, onSpeak, onRegenerate, loading, children }) {
+function WordCard({ word, onSpeak, onRegenerate, loading, headerAction, children }) {
   if (!word) return <Empty title="輸入西班牙文開始查詢">可查詢單字、詞義、發音與例句。</Empty>;
   return (
     <div className="ibv-entry">
@@ -160,6 +164,7 @@ function WordCard({ word, onSpeak, onRegenerate, loading, children }) {
           <button className="ibv-speak" onClick={() => onSpeak(word.word)} aria-label="播放發音">
             <svg width="22" height="22" viewBox="0 0 24 24"><path d="M5 9v6h4l5 4V5L9 9H5z" fill="currentColor"/><path d="M16.5 8.5c1.6 1.2 2.5 2.4 2.5 3.5s-.9 2.3-2.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none"/></svg>
           </button>
+          {headerAction}
           <button className="ibv-icon-btn" onClick={() => onRegenerate(word)} disabled={loading} title="重新生成例句">✦</button>
         </div>
       </article>
@@ -188,12 +193,14 @@ function WordCard({ word, onSpeak, onRegenerate, loading, children }) {
   );
 }
 
-function LookupView({ words, setWords, learnerId, currentWord, setCurrentWord, savedVerbs, setSavedVerbs, onVocabularySaved }) {
+function LookupView({ words, setWords, vocabulary, learnerId, currentWord, setCurrentWord, onVocabularyChanged }) {
   const [query, setQuery] = useState(currentWord?.word || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [verbResult, setVerbResult] = useState(null);
   const [verbBusy, setVerbBusy] = useState(false);
+  const [lookupEntry, setLookupEntry] = useState(null);
+  const [saving, setSaving] = useState(false);
   const suggestions = query
     ? words.filter((word) => normalize(word.word).includes(normalize(query))).slice(0, 8)
     : words.slice(0, 8);
@@ -214,20 +221,21 @@ function LookupView({ words, setWords, learnerId, currentWord, setCurrentWord, s
       const lookupText = conjugation?.infinitive || text;
       const local = words.find((word) => normalize(word.word) === normalize(lookupText));
       const formMatch = conjugation?.matches?.[0] || {};
-      const lookupResult = await api.lookup(lookupText, learnerId, {
+      const entry = {
         surfaceForm: text.toLowerCase(),
         lemma: conjugation?.infinitive || lookupText,
         formKind: conjugation?.formKind || (normalize(text) === normalize(lookupText) ? "lemma" : "other"),
         mood: formMatch.mood,
         tense: formMatch.tense,
         person: formMatch.person
-      });
-      const word = local || lookupResult.word;
+      };
+      const lookupResult = await api.lookup(lookupText, learnerId, entry);
+      const word = lookupResult.word || local;
       setWords((items) => [word, ...items.filter((item) => item.id !== word.id)]);
-      setCurrentWord(word);
-      setQuery(word.word);
+      setCurrentWord({ ...word, lookupSurfaceForm: entry.surfaceForm, ...entry });
+      setQuery(entry.surfaceForm);
       setVerbResult(conjugation);
-      if (lookupResult.vocabulary) onVocabularySaved(lookupResult.vocabulary);
+      setLookupEntry({ ...entry, wordId: word.id });
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -242,29 +250,52 @@ function LookupView({ words, setWords, learnerId, currentWord, setCurrentWord, s
     }
     let active = true;
     setVerbBusy(true);
-    api.conjugate(currentWord.word)
+    api.conjugate(currentWord.lookupSurfaceForm || currentWord.word)
       .then((result) => { if (active) setVerbResult(result); })
       .catch(() => { if (active) setVerbResult(null); })
       .finally(() => { if (active) setVerbBusy(false); });
     return () => { active = false; };
-  }, [currentWord?.word]);
+  }, [currentWord?.word, currentWord?.lookupSurfaceForm]);
 
-  const verbSaved = verbResult && savedVerbs.some((item) => item.infinitive === verbResult.infinitive);
-  async function toggleVerbSaved() {
-    if (!verbResult) return;
-    if (verbSaved) {
-      await api.removeVerb(verbResult.infinitive, learnerId);
-      setSavedVerbs((items) => items.filter((item) => item.infinitive !== verbResult.infinitive));
-    } else {
-      const saved = await api.saveVerb(verbResult.infinitive, learnerId);
-      setSavedVerbs((items) => [saved, ...items.filter((item) => item.infinitive !== saved.infinitive)]);
+  useEffect(() => {
+    if (!currentWord) return;
+    setLookupEntry({
+      wordId: currentWord.wordId || currentWord.id,
+      surfaceForm: currentWord.lookupSurfaceForm || currentWord.word,
+      lemma: currentWord.lemma || currentWord.canonicalWord || currentWord.word,
+      formKind: currentWord.formKind || "lemma",
+      mood: currentWord.mood,
+      tense: currentWord.tense,
+      person: currentWord.person
+    });
+  }, [currentWord]);
+
+  const vocabularySaved = lookupEntry && vocabulary.some(
+    (item) => normalize(item.surfaceForm) === normalize(lookupEntry.surfaceForm)
+  );
+  async function toggleVocabulary() {
+    if (!lookupEntry || saving) return;
+    setSaving(true);
+    try {
+      if (vocabularySaved) {
+        await api.removeVocabulary(lookupEntry.surfaceForm, learnerId);
+        onVocabularyChanged((items) => items.filter(
+          (item) => normalize(item.surfaceForm) !== normalize(lookupEntry.surfaceForm)
+        ));
+      } else {
+        const saved = await api.saveVocabulary({ learnerId, ...lookupEntry });
+        if (saved) onVocabularyChanged((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   async function regenerate(word) {
     setBusy(true);
     try {
-      const result = await api.examples(word);
+      const targetForm = lookupEntry?.surfaceForm || word.lookupSurfaceForm || word.word;
+      const result = await api.examples({ ...word, word: targetForm });
       const updated = { ...word, examples: result.examples };
       setCurrentWord(updated);
       setWords((items) => items.map((item) => item.id === updated.id ? updated : item));
@@ -290,18 +321,26 @@ function LookupView({ words, setWords, learnerId, currentWord, setCurrentWord, s
       </div>
       {busy ? <Empty title={`正在查詢「${query.trim()}」`}>正在整理詞義、例句與動詞分析。</Empty> :
         error ? <Empty title="查詢失敗">{error}</Empty> :
-        <WordCard word={currentWord} onSpeak={speakSpanish} onRegenerate={regenerate} loading={busy}>
+        <WordCard
+          word={currentWord}
+          onSpeak={speakSpanish}
+          onRegenerate={regenerate}
+          loading={busy}
+          headerAction={lookupEntry && <button className={`ibv-btn ibv-save-word ${vocabularySaved ? "ibv-btn-ghost" : ""}`} onClick={toggleVocabulary} disabled={saving}>
+            {saving ? "處理中…" : vocabularySaved ? "✓ 已加入單字庫" : "＋ 加入單字庫"}
+          </button>}
+        >
           {(verbBusy || verbResult) && <div className="word-verb-extension">
             <div className="word-verb-heading">
               <div>
                 <p className="ibv-eyebrow">Conjugación</p>
                 <h3>動詞變位</h3>
-                {verbResult?.inputForm !== verbResult?.infinitive && <p><i>{verbResult?.inputForm}</i> 的原形是 <strong>{verbResult?.infinitive}</strong></p>}
               </div>
-              {verbResult && <button className={`ibv-btn ${verbSaved ? "ibv-btn-ghost" : ""}`} onClick={toggleVerbSaved}>
-                {verbSaved ? "✓ 已加入變位練習" : "＋ 加入變位練習"}
-              </button>}
             </div>
+            {verbResult?.inputForm !== verbResult?.infinitive && <div className="verb-origin-card">
+              <span className="ibv-eyebrow">Forma original</span>
+              <p><i>{verbResult?.inputForm}</i> 的原形動詞是 <strong>{verbResult?.infinitive}</strong></p>
+            </div>}
             {verbBusy && <p className="verb-loading">正在載入完整變位…</p>}
             {verbResult && <VerbConjugations result={verbResult} />}
           </div>}
@@ -352,19 +391,47 @@ function VerbConjugations({ result }) {
   </div>;
 }
 
-function LibraryView({ words, savedVerbs, onOpen, onSpeak }) {
+function VerbFormsHover({ word, words, onOpen }) {
+  if (!isVerb(word)) return null;
+  const lemma = word.lemma || word.canonicalWord || word.word;
+  const forms = words.filter((item) =>
+    isVerb(item) &&
+    normalize(item.lemma || item.canonicalWord || item.word) === normalize(lemma)
+  );
+  return <div className="library-verb-hover" onClick={(event) => event.stopPropagation()}>
+    <div className="library-verb-hover-head">
+      <span className="ibv-eyebrow">Formas guardadas</span>
+      <strong>{lemma}</strong>
+    </div>
+    <div className="library-verb-hover-list">
+      {forms.map((item) => <button key={item.id} onClick={() => onOpen({ ...item, lookupSurfaceForm: item.word })}>
+        <strong>{item.word}</strong>
+        <span>{item.person || (normalize(item.word) === normalize(lemma) ? "原形" : "變位")}
+          {item.tense ? ` · ${tenseLabels[item.tense] || item.tense}` : ""}
+        </span>
+      </button>)}
+    </div>
+  </div>;
+}
+
+function LibraryView({ words, onOpen, onSpeak }) {
   const [query, setQuery] = useState("");
   const [section, setSection] = useState("all");
   const [mode, setMode] = useState("cards");
   const [cardIndex, setCardIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const savedSet = new Set(savedVerbs.map((item) => normalize(item.infinitive)));
   const filtered = words.filter((word) => {
     if (!normalize(`${word.word} ${word.zh} ${word.en}`).includes(normalize(query))) return false;
-    if (section === "general") return !isVerb(word);
+    if (section === "general") {
+      return !isVerb(word) || isInfinitiveVerb(word);
+    }
     if (section === "verbs") return isVerb(word);
-    if (section === "saved-verbs") return isVerb(word) && savedSet.has(normalize(word.word));
     return true;
+  }).sort((left, right) => {
+    if (section !== "verbs") return 0;
+    const leftLemma = left.lemma || left.canonicalWord || left.word;
+    const rightLemma = right.lemma || right.canonicalWord || right.word;
+    return leftLemma.localeCompare(rightLemma, "es") || left.word.localeCompare(right.word, "es");
   });
   const card = filtered.length ? filtered[cardIndex % filtered.length] : null;
   function moveCard(delta) {
@@ -382,7 +449,7 @@ function LibraryView({ words, savedVerbs, onOpen, onSpeak }) {
         </div>
       </div>
       <div className="library-sections" role="group" aria-label="單字庫分類">
-        {[["all", "全部"], ["general", "一般單字"], ["verbs", "動詞"], ["saved-verbs", "變位練習"]].map(([id, label]) =>
+        {[["all", "全部"], ["general", "一般單字"], ["verbs", "動詞"]].map(([id, label]) =>
           <button key={id} className={section === id ? "is-active" : ""} onClick={() => { setSection(id); setCardIndex(0); setFlipped(false); }}>{label}</button>)}
       </div>
       <div className="ibv-toolbar"><input value={query} onChange={(event) => { setQuery(event.target.value); setCardIndex(0); }} placeholder="搜尋單字、詞義或詞性" /></div>
@@ -394,11 +461,20 @@ function LibraryView({ words, savedVerbs, onOpen, onSpeak }) {
               <h4 className="ibv-fc-w">{card.word}</h4>
               <div className="ibv-fc-meta"><span className="ibv-pos">{card.part}</span><div className="ibv-card-ipa">{card.ipa}</div></div>
               <button className="ibv-card-speak" onClick={(event) => { event.stopPropagation(); onSpeak(card.word); }} aria-label={`播放 ${card.word} 發音`}>▶ 發音</button>
-              <div className="ibv-fc-foot"><span>輕點翻面</span><span>{isVerb(card) ? "動詞 · 可查看變位" : "Palabra Clara"}</span></div>
+              <div className="ibv-fc-foot"><span>輕點翻面</span><span>{isVerb(card) && !isInfinitiveVerb(card) ? `原形 · ${card.lemma}` : isVerb(card) ? "動詞 · 可查看變位" : "Palabra Clara"}</span></div>
             </div>
             <div className="ibv-fc-face ibv-fc-back">
               <div className="ibv-fc-h"><span>Significado</span><span>{card.level}</span></div>
-              <div className="ibv-fc-meta"><p className="ibv-fc-zh">{card.zh}</p><p className="ibv-fc-en">{card.en}</p>{card.examples?.[0] && <p className="ibv-fc-ex">“{card.examples[0].es}”</p>}</div>
+              <div className="ibv-fc-meta">
+                <p className="ibv-fc-zh">{card.zh}</p>
+                <p className="ibv-fc-en">{card.en}</p>
+                {isVerb(card) && !isInfinitiveVerb(card) && <div className="ibv-fc-conjugation">
+                  <span>原形 <strong>{card.lemma}</strong></span>
+                  <span>{moodLabels[card.mood] || card.mood || "動詞變位"} · {tenseLabels[card.tense] || card.tense || "時態未標記"}</span>
+                  {card.person && <span>人稱 · {card.person}</span>}
+                </div>}
+                {card.examples?.[0] && <p className="ibv-fc-ex">“{card.examples[0].es}”</p>}
+              </div>
               <div className="ibv-fc-foot"><span>{card.part}</span><span>翻回正面</span></div>
             </div>
           </div>
@@ -410,11 +486,12 @@ function LibraryView({ words, savedVerbs, onOpen, onSpeak }) {
           </div>
         </div> :
         <div className="ibv-list">{filtered.map((word) =>
-          <div className="ibv-row" key={word.id}>
+          <div className={`ibv-row ${section === "verbs" ? "has-verb-hover" : ""}`} key={word.id}>
             <button className="ibv-row-open" onClick={() => onOpen(word)}>
               <span className="ibv-row-w">{word.word}</span><span className="ibv-pos">{word.part}</span><span>{word.zh}</span><span>{word.en}</span><span className="ibv-row-ipa">{word.ipa}</span><span>{word.level}</span>
             </button>
             <button className="ibv-row-speak" onClick={() => onSpeak(word.word)} aria-label={`播放 ${word.word} 發音`}>▶</button>
+            {section === "verbs" && <VerbFormsHover word={word} words={filtered} onOpen={onOpen} />}
           </div>)}
         </div>}
     </section>
@@ -423,10 +500,10 @@ function LibraryView({ words, savedVerbs, onOpen, onSpeak }) {
 
 function quizEntryWord(entry) {
   const base = entry.word && typeof entry.word === "object" ? entry.word : entry;
-  return { ...base, id: entry.id || base.id, wordId: base.id, word: entry.surfaceForm || base.word, lemma: entry.lemma || base.word, formKind: entry.formKind || "lemma", mood: entry.mood, tense: entry.tense, person: entry.person };
+  return { ...base, id: entry.id || base.id, wordId: base.id, canonicalWord: base.word, word: entry.surfaceForm || base.word, lemma: entry.lemma || base.word, formKind: entry.formKind || "lemma", mood: entry.mood, tense: entry.tense, person: entry.person };
 }
 
-function QuizView({ words, vocabulary, savedVerbs, progress, learnerId, onProgress }) {
+function QuizView({ words, vocabulary, progress, learnerId, onProgress }) {
   const [mode, setMode] = useState("words");
   const [phase, setPhase] = useState("setup");
   const [questionType, setQuestionType] = useState("choice");
@@ -442,8 +519,8 @@ function QuizView({ words, vocabulary, savedVerbs, progress, learnerId, onProgre
   const [loading, setLoading] = useState(false);
 
   const generalEntries = useMemo(
-    () => (vocabulary?.length ? vocabulary : words).map(quizEntryWord),
-    [vocabulary, words]
+    () => (vocabulary || []).map(quizEntryWord),
+    [vocabulary]
   );
 
   async function buildSession() {
@@ -467,7 +544,7 @@ function QuizView({ words, vocabulary, savedVerbs, progress, learnerId, onProgre
         return;
       }
 
-      const infinitives = (savedVerbs.length ? savedVerbs.map((item) => item.infinitive) : words.filter(isVerb).map((word) => word.word));
+      const infinitives = [...new Set(generalEntries.filter(isVerb).map((entry) => entry.lemma || entry.word))];
       const conjugations = await Promise.all(infinitives.map((verb) => api.conjugate(verb).catch(() => null)));
       const forms = conjugations.filter(Boolean).flatMap((result) => flattenConjugations(result, selectedTenses))
         .filter((target) => !unfamiliarOnly || progress[target.targetWord]?.mastery !== "mastered");
@@ -703,19 +780,17 @@ export default function App() {
   const [vocabulary, setVocabulary] = useState([]);
   const [currentWord, setCurrentWord] = useState(null);
   const [progress, setProgress] = useState(() => JSON.parse(localStorage.getItem("palabraProgress") || "{}"));
-  const [savedVerbs, setSavedVerbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const learnerId = useMemo(getLearnerId, []);
 
   useEffect(() => {
     if (!onboarded) return;
-    Promise.all([api.words(), api.vocabulary(learnerId).catch(() => []), api.progress(learnerId).catch(() => ({})), api.savedVerbs(learnerId).catch(() => [])])
-      .then(([loadedWords, entries, remote, verbs]) => {
+    Promise.all([api.words(), api.vocabulary(learnerId).catch(() => []), api.progress(learnerId).catch(() => ({}))])
+      .then(([loadedWords, entries, remote]) => {
         setWords(loadedWords);
         setVocabulary(entries);
         setCurrentWord(loadedWords[0] || null);
         setProgress((local) => ({ ...local, ...remote }));
-        setSavedVerbs(verbs);
       })
       .finally(() => setLoading(false));
   }, [learnerId, onboarded]);
@@ -737,14 +812,14 @@ export default function App() {
 
   return (
     <div className="ibv-root">
-      <Sidebar view={view} setView={setView} progress={progress} words={words} name={name} />
+      <Sidebar view={view} setView={setView} progress={progress} words={vocabulary} name={name} />
       <main className="ibv-main">
         {loading ? <Empty title="正在載入">正在連接單字庫與學習進度。</Empty> : <>
-          {view === "lookup" && <LookupView words={words} setWords={setWords} learnerId={learnerId} currentWord={currentWord} setCurrentWord={setCurrentWord} savedVerbs={savedVerbs} setSavedVerbs={setSavedVerbs} onVocabularySaved={(entry) => setVocabulary((items) => [entry, ...items.filter((item) => item.id !== entry.id)])} />}
-          {view === "library" && <LibraryView words={(vocabulary.length ? vocabulary.map(quizEntryWord) : words)} savedVerbs={savedVerbs} onOpen={openWord} onSpeak={speakSpanish} />}
-          {view === "quiz" && <QuizView words={words} vocabulary={vocabulary} savedVerbs={savedVerbs} progress={progress} learnerId={learnerId} onProgress={updateProgress} />}
-          {view === "review" && <ReviewView words={(vocabulary.length ? vocabulary.map(quizEntryWord) : words)} progress={progress} onOpen={openWord} />}
-          {view === "account" && <AccountView name={name} setName={setName} words={words} progress={progress} />}
+          {view === "lookup" && <LookupView words={words} setWords={setWords} vocabulary={vocabulary} learnerId={learnerId} currentWord={currentWord} setCurrentWord={setCurrentWord} onVocabularyChanged={setVocabulary} />}
+          {view === "library" && <LibraryView words={vocabulary.map(quizEntryWord)} onOpen={openWord} onSpeak={speakSpanish} />}
+          {view === "quiz" && <QuizView words={words} vocabulary={vocabulary} progress={progress} learnerId={learnerId} onProgress={updateProgress} />}
+          {view === "review" && <ReviewView words={vocabulary.map(quizEntryWord)} progress={progress} onOpen={openWord} />}
+          {view === "account" && <AccountView name={name} setName={setName} words={vocabulary} progress={progress} />}
         </>}
       </main>
       <nav className="ibv-mobile-tabbar">

@@ -401,13 +401,19 @@ input { cursor: text; }
 .ibv-fc-zh { font-family: var(--serif), serif; font-size: 28px; margin: 4px 0 6px; }
 .ibv-fc-en { font-size: 14px; opacity: .85; margin: 0; }
 .ibv-fc-ex { margin-top: 14px; font-family: var(--serif), serif; font-size: 15px; font-style: italic; opacity: .9; margin-bottom: 0; }
+.ibv-fc-conjugation {
+  display: grid; gap: 4px; max-width: 360px; margin: 14px auto 0; padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,.24); border-radius: var(--r-sm);
+  background: rgba(255,255,255,.08); color: var(--cream); font-size: 13px;
+}
+.ibv-fc-conjugation strong { font: 600 18px var(--serif), serif; color: var(--secondary); }
 
 .ibv-card-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 
 /* list view */
-.ibv-list { display: grid; gap: 6px; }
+.ibv-list { display: grid; gap: 6px; overflow: visible; }
 .ibv-row {
-  text-align: left; border: 1px solid var(--rule);
+  position: relative; z-index: 1; text-align: left; border: 1px solid var(--rule);
   background: var(--cream); border-radius: var(--r); padding: 12px 16px;
   display: grid; grid-template-columns: 1fr auto;
   align-items: center; gap: 14px;
@@ -415,6 +421,8 @@ input { cursor: text; }
   transition: border-color .14s, transform .14s; width: 100%;
 }
 .ibv-row:hover { border-color: var(--primary); transform: translateX(2px); }
+.ibv-row.has-verb-hover:hover,
+.ibv-row.has-verb-hover:focus-within { z-index: 30; }
 .ibv-row-open {
   appearance: none; border: 0; background: transparent; color: inherit;
   text-align: left; cursor: pointer; padding: 0;
@@ -984,7 +992,17 @@ input { cursor: text; }
   margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--rule);
 }
 .word-verb-heading h3 { margin: 3px 0 0; font: 500 24px var(--serif), serif; }
-.word-verb-heading p:last-child { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.verb-origin-card {
+  margin: 0 0 18px; padding: 18px 22px;
+  border: 1px solid var(--rule); border-radius: var(--r);
+  background: var(--cream); box-shadow: 0 8px 22px -20px rgba(40,32,26,.35);
+}
+.verb-origin-card p {
+  margin: 6px 0 0; font: 500 24px/1.35 var(--serif), serif; color: var(--ink);
+}
+.verb-origin-card i { color: var(--primary-dk); }
+.verb-origin-card strong { color: var(--deep); font-size: 1.12em; }
+.ibv-save-word { min-width: 142px; justify-content: center; }
 .verb-loading { color: var(--muted); }
 
 .library-sections {
@@ -999,6 +1017,36 @@ input { cursor: text; }
 .library-sections button.is-active {
   background: var(--ink); color: var(--cream);
 }
+.has-verb-hover { position: relative; }
+.library-verb-hover {
+  position: absolute; z-index: 12;
+  display: grid; gap: 10px; width: min(310px, calc(100vw - 32px)); padding: 14px;
+  border: 1px solid var(--primary); border-radius: var(--r);
+  background: var(--cream); box-shadow: 0 24px 44px -24px rgba(40,32,26,.6);
+  opacity: 0; visibility: hidden; transform: translateY(-5px);
+  transition: opacity .16s, visibility .16s, transform .16s;
+}
+.ibv-row > .library-verb-hover {
+  right: 52px; top: calc(100% + 4px);
+}
+.has-verb-hover:hover > .library-verb-hover,
+.has-verb-hover:focus-within > .library-verb-hover {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+.library-verb-hover-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--rule);
+}
+.library-verb-hover-head strong { font: 500 22px var(--serif), serif; color: var(--deep); }
+.library-verb-hover-list { display: grid; gap: 6px; max-height: 240px; overflow-y: auto; }
+.library-verb-hover-list button {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  border: 0; border-radius: var(--r-sm); padding: 8px 10px;
+  background: var(--cream2); color: var(--ink); cursor: pointer; text-align: left;
+}
+.library-verb-hover-list button:hover { background: color-mix(in oklab, var(--secondary), transparent 82%); }
+.library-verb-hover-list strong { font: 500 18px var(--serif), serif; }
+.library-verb-hover-list span { color: var(--muted); font-size: 11px; }
 .quiz-kind {
   display: table; margin: 0 0 14px; padding: 5px 10px; border-radius: var(--r-pill);
   color: var(--info); background: rgba(58,104,120,.1);
@@ -1062,8 +1110,14 @@ input { cursor: text; }
   .ibv-main > .ibv-empty-state { margin: 20px 16px; }
   .verb-tense-grid { grid-template-columns: 1fr; }
   .word-verb-heading { align-items: flex-start; flex-direction: column; }
+  .verb-origin-card p { font-size: 20px; }
+  .ibv-head-aside { align-items: center; }
+  .ibv-save-word { min-width: 0; padding-inline: 12px; }
   .library-sections { display: flex; overflow-x: auto; border-radius: 14px; }
   .library-sections button { white-space: nowrap; }
+  .ibv-row > .library-verb-hover {
+    left: 12px; right: 12px; top: calc(100% - 6px); width: auto;
+  }
   .ibv-quiz-setup-inline { justify-content: flex-start; padding: 0 16px; }
   .quiz-tense-options, .quiz-setting-common { grid-template-columns: 1fr; }
   .review-filters { justify-items: stretch; width: 100%; overflow-x: auto; }

@@ -10,7 +10,7 @@ function inferFormKind(surfaceForm, lemma, wordPart, requestedKind) {
   return ["verb", "verbo"].includes(normalize(wordPart)) ? "conjugated" : "other";
 }
 
-function toVocabularyItem(row, legacyFallback = false) {
+function toVocabularyItem(row) {
   return {
     id: row.vocabulary_id || null,
     learnerId: row.learner_id || null,
@@ -23,7 +23,6 @@ function toVocabularyItem(row, legacyFallback = false) {
     person: row.person || null,
     createdAt: row.vocabulary_created_at || row.word_created_at || null,
     updatedAt: row.vocabulary_updated_at || row.word_updated_at || null,
-    legacyFallback,
     word: {
       id: row.word_id,
       word: row.word,
@@ -79,6 +78,7 @@ const VOCABULARY_SELECT = `
 async function saveVocabularyEntry({
   learnerId,
   word,
+  wordId,
   surfaceForm,
   lemma,
   formKind,
@@ -86,12 +86,16 @@ async function saveVocabularyEntry({
   tense,
   person
 }) {
-  if (!learnerId || !word?.id) return null;
+  if (!learnerId || (!word?.id && !wordId)) return null;
 
   await ensureLearner(learnerId);
-  const canonicalLemma = canonicalizeSpanishWord(lemma || word.word);
+  const wordRecord = word || (
+    await query("select id, word, part from words where id = $1", [wordId])
+  ).rows[0];
+  if (!wordRecord) return null;
+  const canonicalLemma = canonicalizeSpanishWord(lemma || wordRecord.word);
   const canonicalSurface = canonicalizeSpanishWord(surfaceForm || canonicalLemma);
-  const resolvedKind = inferFormKind(canonicalSurface, canonicalLemma, word.part, formKind);
+  const resolvedKind = inferFormKind(canonicalSurface, canonicalLemma, wordRecord.part, formKind);
 
   const saved = await query(
     `insert into learner_vocabulary
@@ -108,7 +112,7 @@ async function saveVocabularyEntry({
      returning id`,
     [
       learnerId,
-      word.id,
+      wordRecord.id,
       canonicalSurface,
       canonicalLemma,
       resolvedKind,
@@ -140,40 +144,17 @@ async function listVocabulary(learnerId) {
      order by lv.created_at desc`,
     [learnerId]
   );
-  const personalItems = result.rows.map((row) => toVocabularyItem(row));
-
-  // Before learner_vocabulary existed, the shared word bank acted as every learner's library.
-  const fallback = await query(
-    `select
-       w.id as word_id,
-       w.word,
-       w.part,
-       w.zh,
-       w.en,
-       w.ipa,
-       w.level,
-       w.tags,
-       w.accepted_answers,
-       w.near_answers,
-       w.source,
-       w.created_at as word_created_at,
-       w.updated_at as word_updated_at,
-       coalesce(
-         json_agg(json_build_object('id', e.id, 'es', e.es, 'zh', e.zh, 'en', e.en) order by e.created_at)
-         filter (where e.id is not null),
-         '[]'
-       ) as examples
-     from words w
-     left join examples e on e.word_id = w.id
-     group by w.id
-     order by w.word`
-  );
-  const merged = new Map(fallback.rows.map((row) => {
-    const item = toVocabularyItem(row, true);
-    return [normalize(item.surfaceForm), item];
-  }));
-  for (const item of personalItems) merged.set(normalize(item.surfaceForm), item);
-  return [...personalItems, ...[...merged.values()].filter((item) => item.legacyFallback)];
+  return result.rows.map((row) => toVocabularyItem(row));
 }
 
-module.exports = { listVocabulary, saveVocabularyEntry };
+async function removeVocabularyEntry(learnerId, rawSurfaceForm) {
+  if (!learnerId) return { removed: false };
+  const surfaceForm = canonicalizeSpanishWord(rawSurfaceForm);
+  const result = await query(
+    "delete from learner_vocabulary where learner_id = $1 and surface_form = $2",
+    [learnerId, surfaceForm]
+  );
+  return { removed: result.rowCount > 0 };
+}
+
+module.exports = { inferFormKind, listVocabulary, removeVocabularyEntry, saveVocabularyEntry };

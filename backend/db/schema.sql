@@ -69,13 +69,6 @@ create table if not exists word_reviews (
   primary key (learner_id, target_word)
 );
 
-create table if not exists verb_vocabulary (
-  learner_id uuid not null references learners(id) on delete cascade,
-  infinitive text not null,
-  created_at timestamptz not null default now(),
-  primary key (learner_id, infinitive)
-);
-
 create table if not exists learner_vocabulary (
   id uuid primary key default gen_random_uuid(),
   learner_id uuid not null references learners(id) on delete cascade,
@@ -96,7 +89,6 @@ create index if not exists lookup_history_learner_created_idx on lookup_history(
 create index if not exists quiz_attempts_learner_created_idx on quiz_attempts(learner_id, created_at desc);
 create index if not exists quiz_attempts_word_idx on quiz_attempts(word_id);
 create index if not exists word_reviews_due_idx on word_reviews(learner_id, due_at);
-create index if not exists verb_vocabulary_learner_idx on verb_vocabulary(learner_id, created_at desc);
 create index if not exists learner_vocabulary_learner_created_idx
   on learner_vocabulary(learner_id, created_at desc);
 create index if not exists learner_vocabulary_word_idx on learner_vocabulary(word_id);

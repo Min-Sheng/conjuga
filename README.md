@@ -18,10 +18,10 @@
 - 答錯單字自動加入弱點複習與加權出題
 - React + Vite 前端，統一使用 Palabra Clara 設計系統
 - 動詞原形反查與完整時態變位，由獨立 Python NLP 服務提供
-- 動詞收藏儲存在 PostgreSQL
+- 查詢與收藏分離，使用者可明確將一般單字或動詞形式加入 PostgreSQL 單字庫
 - 單字查詢為統一入口；查到動詞或動詞變形時，詞條會自動擴增完整變位內容
-- 單字庫可切換全部、一般單字、動詞與收藏動詞
-- 一般單字測驗與動詞變位測驗分開，一般測驗也可選擇混入變位題
+- 單字庫可切換全部、一般單字與動詞；同原形的動詞形式會分組顯示
+- 一般單字測驗與動詞變位測驗分開，一般測驗可選擇是否包含已收藏的非原形動詞
 
 ## 整合後架構
 
@@ -162,10 +162,10 @@ espanol_palabra/
 - `POST /api/pronunciation`：可用 Google Cloud Text-to-Speech 產生發音，否則前端退回 Web Speech
 - `POST /api/examples`：可用 AI 產生例句
 - `POST /api/judge-answer`：填空題模糊答案 AI 判讀
+- `GET /api/vocabulary?learnerId=...`：取得使用者明確收藏的單字
+- `POST /api/vocabulary`：將查詢結果加入單字庫
+- `DELETE /api/vocabulary/:surfaceForm?learnerId=...`：從單字庫移除指定形式
 - `GET /api/verbs/lookup?q=fui`：反查原形並取得完整變位
-- `GET /api/verbs?learnerId=...`：取得收藏動詞
-- `POST /api/verbs/:infinitive`：收藏動詞
-- `DELETE /api/verbs/:infinitive?learnerId=...`：移除收藏
 
 設定方式可參考根目錄 `.env.example`。本機啟動與 Docker Compose 都會讀取根目錄 `.env`。
 

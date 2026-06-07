@@ -21,15 +21,11 @@ export const api = {
   judgeAnswer: (payload) =>
     request("/api/judge-answer", { method: "POST", body: JSON.stringify(payload) }),
   vocabulary: (learnerId) => request(`/api/vocabulary?learnerId=${encodeURIComponent(learnerId)}`),
-  conjugate: (query) => request(`/api/verbs/lookup?q=${encodeURIComponent(query)}`),
-  savedVerbs: (learnerId) => request(`/api/verbs?learnerId=${encodeURIComponent(learnerId)}`),
-  saveVerb: (infinitive, learnerId) =>
-    request(`/api/verbs/${encodeURIComponent(infinitive)}`, {
-      method: "POST",
-      body: JSON.stringify({ learnerId })
-    }),
-  removeVerb: (infinitive, learnerId) =>
-    request(`/api/verbs/${encodeURIComponent(infinitive)}?learnerId=${encodeURIComponent(learnerId)}`, {
+  saveVocabulary: (payload) =>
+    request("/api/vocabulary", { method: "POST", body: JSON.stringify(payload) }),
+  removeVocabulary: (surfaceForm, learnerId) =>
+    request(`/api/vocabulary/${encodeURIComponent(surfaceForm)}?learnerId=${encodeURIComponent(learnerId)}`, {
       method: "DELETE"
-    })
+    }),
+  conjugate: (query) => request(`/api/verbs/lookup?q=${encodeURIComponent(query)}`)
 };
