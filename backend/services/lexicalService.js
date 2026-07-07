@@ -25,18 +25,27 @@ function choosePart(entries) {
 
 async function lookupLexicalInfo(word) {
   const url = new URL(`https://freedictionaryapi.com/api/v1/entries/es/${encodeURIComponent(word)}`);
-  const response = await fetch(url);
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    return { part: "", ipa: "", source: "FreeDictionaryAPI unreachable" };
+  }
   if (!response.ok) {
     return { part: "", ipa: "", source: "FreeDictionaryAPI miss" };
   }
 
-  const data = await response.json();
-  const entries = Array.isArray(data.entries) ? data.entries : [];
-  return {
-    part: choosePart(entries),
-    ipa: chooseIpa(entries),
-    source: "FreeDictionaryAPI"
-  };
+  try {
+    const data = await response.json();
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    return {
+      part: choosePart(entries),
+      ipa: chooseIpa(entries),
+      source: "FreeDictionaryAPI"
+    };
+  } catch (error) {
+    return { part: "", ipa: "", source: "FreeDictionaryAPI miss" };
+  }
 }
 
 module.exports = { lookupLexicalInfo };

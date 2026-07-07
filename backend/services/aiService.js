@@ -11,21 +11,31 @@ async function callAiJson(messages, fallback) {
     (provider === "groq" ? "https://api.groq.com/openai/v1/chat/completions" : "https://api.openai.com/v1/chat/completions");
   const model = process.env.AI_MODEL || (provider === "groq" ? "llama-3.1-8b-instant" : "gpt-4.1-mini");
 
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      response_format: { type: "json_object" },
-      messages
-    })
-  });
+  let response;
+  try {
+    response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        response_format: { type: "json_object" },
+        messages
+      })
+    });
+  } catch (error) {
+    return fallback;
+  }
 
   if (!response.ok) return fallback;
-  const data = await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch (error) {
+    return fallback;
+  }
   try {
     return JSON.parse(data.choices?.[0]?.message?.content || "{}");
   } catch (error) {

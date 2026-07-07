@@ -1,5 +1,3 @@
-const { translateText } = require("./translationService");
-
 const nlpServiceUrl = (process.env.NLP_SERVICE_URL || "http://localhost:8000").replace(/\/$/, "");
 
 async function requestNlp(path) {
@@ -24,17 +22,7 @@ async function lookupVerb(rawQuery) {
   }
 
   const result = await requestNlp(`/verbs/lookup?q=${encodeURIComponent(input)}`);
-  let english = "";
-  try {
-    english = await translateText(result.infinitive, "en");
-  } catch {
-    // Conjugation remains useful when the translation provider is unavailable.
-  }
-
-  return {
-    ...result,
-    meanings: english ? [english] : []
-  };
+  return result;
 }
 
 module.exports = { lookupVerb };

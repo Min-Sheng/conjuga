@@ -23,8 +23,28 @@ async function query(text, params = []) {
   return activePool.query(text, params);
 }
 
+async function withTransaction(work) {
+  const activePool = getPool();
+  const client = await activePool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await work(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      // Ignore rollback failure; the original error is what matters.
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function closePool() {
   if (pool) await pool.end();
 }
 
-module.exports = { closePool, query, requireDatabaseUrl };
+module.exports = { closePool, query, requireDatabaseUrl, withTransaction };

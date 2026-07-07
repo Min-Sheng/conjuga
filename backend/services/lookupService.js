@@ -2,6 +2,7 @@ const { findWord, saveWord } = require("./wordBankService");
 const { translateText } = require("./translationService");
 const { containsTargetWord, generateExamples } = require("./exampleService");
 const { lookupLexicalInfo } = require("./lexicalService");
+const { recordLookup } = require("./learningService");
 const { canonicalizeSpanishWord, uniqueNormalized } = require("../utils/text");
 
 function examplesNeedRefresh(word) {
@@ -63,4 +64,35 @@ async function lookupWord(rawWord) {
   };
 }
 
-module.exports = { lookupWord };
+async function lookupWithSurfaceForm({ word, surfaceForm: rawSurfaceForm, learnerId }) {
+  const result = await lookupWord(word);
+  const surfaceForm = String(rawSurfaceForm || word || "").trim().toLowerCase();
+  let responseWord = result.word;
+
+  if (surfaceForm && surfaceForm !== result.word?.word) {
+    const generated = await generateExamples({ ...result.word, word: surfaceForm });
+    const firstExample = generated.examples.find((example) =>
+      String(example.es || "").toLowerCase().includes(surfaceForm)
+    );
+    if (firstExample) {
+      responseWord = {
+        ...result.word,
+        examples: [
+          firstExample,
+          ...(result.word.examples || []).filter((example) => example.es !== firstExample.es)
+        ].slice(0, 2)
+      };
+    }
+  }
+
+  await recordLookup({
+    learnerId,
+    wordId: result.word?.id,
+    queryText: surfaceForm || word,
+    source: result.source
+  });
+
+  return { ...result, word: responseWord };
+}
+
+module.exports = { lookupWithSurfaceForm, lookupWord };

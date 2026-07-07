@@ -43,10 +43,19 @@ async function translateWithMyMemory(text, target) {
     url.searchParams.set("de", process.env.MYMEMORY_EMAIL);
   }
 
-  const response = await fetch(url);
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    return "";
+  }
   if (!response.ok) return "";
-  const data = await response.json();
-  return chooseMyMemoryTranslation(data, target);
+  try {
+    const data = await response.json();
+    return chooseMyMemoryTranslation(data, target);
+  } catch (error) {
+    return "";
+  }
 }
 
 async function translateWithGoogle(text, target) {
@@ -54,15 +63,24 @@ async function translateWithGoogle(text, target) {
   const url = new URL("https://translation.googleapis.com/language/translate/v2");
   url.searchParams.set("key", process.env.GOOGLE_TRANSLATE_API_KEY);
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ q: text, source: "es", target, format: "text" })
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q: text, source: "es", target, format: "text" })
+    });
+  } catch (error) {
+    return "";
+  }
 
   if (!response.ok) return "";
-  const data = await response.json();
-  return data.data?.translations?.[0]?.translatedText || "";
+  try {
+    const data = await response.json();
+    return data.data?.translations?.[0]?.translatedText || "";
+  } catch (error) {
+    return "";
+  }
 }
 
 async function translateText(text, target) {

@@ -1,6 +1,8 @@
 const { callAiJson } = require("./aiService");
 const { normalize } = require("../utils/text");
 
+const VALID_RESULTS = new Set(["correct", "acceptable", "incorrect"]);
+
 function spanishQuizKey(text) {
   return String(text || "").trim().toLowerCase();
 }
@@ -40,7 +42,14 @@ async function judgeAnswer(payload) {
     };
   }
 
-  return callAiJson(
+  const fallback = {
+    result: "incorrect",
+    correct: false,
+    score: 0,
+    feedback: `這題目標字是 ${payload.targetWord}：${payload.zh} / ${payload.en}。`
+  };
+
+  const aiResult = await callAiJson(
     [
       {
         role: "system",
@@ -55,13 +64,13 @@ async function judgeAnswer(payload) {
         })
       }
     ],
-    {
-      result: "incorrect",
-      correct: false,
-      score: 0,
-      feedback: `這題目標字是 ${payload.targetWord}：${payload.zh} / ${payload.en}。`
-    }
+    fallback
   );
+
+  if (!aiResult || !VALID_RESULTS.has(aiResult.result)) {
+    return fallback;
+  }
+  return aiResult;
 }
 
 module.exports = { judgeAnswer };

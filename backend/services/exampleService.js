@@ -79,8 +79,8 @@ async function generateExamples(word) {
   const translatedExamples = await Promise.all(
     examples.slice(0, 2).map(async (example) => ({
       es: example.es,
-      zh: (await translateText(example.es, "zh-TW")) || example.zh || "",
-      en: (await translateText(example.es, "en")) || example.en || ""
+      zh: example.zh || (await translateText(example.es, "zh-TW")) || "",
+      en: example.en || (await translateText(example.es, "en")) || ""
     }))
   );
 

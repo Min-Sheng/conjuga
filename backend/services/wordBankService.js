@@ -1,4 +1,4 @@
-const { query } = require("../db/client");
+const { query, withTransaction } = require("../db/client");
 const { canonicalizeSpanishWord, normalize, uniqueNormalized } = require("../utils/text");
 
 function toApiWord(row, examples = []) {
@@ -101,16 +101,18 @@ async function saveWord(item, source = "generated") {
 
   const wordId = wordResult.rows[0].id;
   if (Array.isArray(item.examples) && item.examples.length) {
-    await query("delete from examples where word_id = $1 and source = $2", [wordId, source]);
-    for (const example of item.examples) {
-      await query("insert into examples (word_id, es, zh, en, source) values ($1, $2, $3, $4, $5)", [
-        wordId,
-        example.es,
-        example.zh || "",
-        example.en || "",
-        source
-      ]);
-    }
+    await withTransaction(async (client) => {
+      await client.query("delete from examples where word_id = $1 and source = $2", [wordId, source]);
+      for (const example of item.examples) {
+        await client.query("insert into examples (word_id, es, zh, en, source) values ($1, $2, $3, $4, $5)", [
+          wordId,
+          example.es,
+          example.zh || "",
+          example.en || "",
+          source
+        ]);
+      }
+    });
   }
 
   return findWord(canonicalWord);

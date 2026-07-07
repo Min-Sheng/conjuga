@@ -188,22 +188,8 @@ async function getProgress(learnerId) {
   );
 }
 
-async function getLookupHistory(learnerId, limit = 30) {
-  if (!learnerId) return [];
-  const result = await query(
-    `select query, source, created_at
-     from lookup_history
-     where learner_id = $1
-     order by created_at desc
-     limit $2`,
-    [learnerId, limit]
-  );
-  return result.rows;
-}
-
 module.exports = {
   ensureLearner,
-  getLookupHistory,
   getProgress,
   masteryStatus,
   nextReviewState,
