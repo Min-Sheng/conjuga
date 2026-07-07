@@ -10,40 +10,18 @@ import {
   shuffle
 } from "./quizUtils";
 import { moodLabels, moodOrder, tenseLabels } from "./verbLabels";
-
-const makeId = () => globalThis.crypto?.randomUUID?.() || `learner-${Date.now()}`;
-const normalize = (value) =>
-  String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const isVerb = (word) => normalize(word?.part) === "verbo" || (word?.tags || []).some((tag) => normalize(tag) === "verbo");
-const isInfinitiveVerb = (word) => {
-  const value = normalize(word?.word);
-  return isVerb(word) && /(?:ar|er|ir)(?:se)?$/.test(value);
-};
-
-async function speakSpanish(text) {
-  try {
-    const result = await api.pronunciation(text);
-    if (result.audioDataUrl) {
-      await new Audio(result.audioDataUrl).play();
-      return;
-    }
-  } catch {
-    // Browser speech is the offline fallback.
-  }
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "es-ES";
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utterance);
-}
-
-function getLearnerId() {
-  let id = localStorage.getItem("palabraLearnerId");
-  if (!id) {
-    id = makeId();
-    localStorage.setItem("palabraLearnerId", id);
-  }
-  return id;
-}
+import { isInfinitiveVerb, isVerb, normalize } from "./lib/wordUtils";
+import { speakSpanish } from "./lib/speech";
+import {
+  getLearnerId,
+  getStoredProgress,
+  getStoredUserName,
+  isOnboarded as isOnboardedStored,
+  setOnboarded as persistOnboarded,
+  setStoredProgress,
+  setStoredUserName
+} from "./lib/learner";
+import { quizEntryWord } from "./lib/entryAdapters";
 
 const navItems = [
   ["lookup", "查詢"],
@@ -76,8 +54,8 @@ function Onboarding({ onDone }) {
       <form className="react-onboarding-form" onSubmit={(event) => {
         event.preventDefault();
         const displayName = name.trim() || "學習者";
-        localStorage.setItem("palabraUserName", displayName);
-        localStorage.setItem("palabraOnboarded", "true");
+        setStoredUserName(displayName);
+        persistOnboarded();
         onDone(displayName);
       }}>
         <p className="ibv-eyebrow">Bienvenido</p>
@@ -498,11 +476,6 @@ function LibraryView({ words, onOpen, onSpeak }) {
   );
 }
 
-function quizEntryWord(entry) {
-  const base = entry.word && typeof entry.word === "object" ? entry.word : entry;
-  return { ...base, id: entry.id || base.id, wordId: base.id, canonicalWord: base.word, word: entry.surfaceForm || base.word, lemma: entry.lemma || base.word, formKind: entry.formKind || "lemma", mood: entry.mood, tense: entry.tense, person: entry.person };
-}
-
 function QuizView({ words, vocabulary, progress, learnerId, onProgress }) {
   const [mode, setMode] = useState("words");
   const [phase, setPhase] = useState("setup");
@@ -761,7 +734,7 @@ function AccountView({ name, setName, words, progress }) {
         <form className="react-account-form" onSubmit={(event) => {
           event.preventDefault();
           const next = draft.trim() || "學習者";
-          localStorage.setItem("palabraUserName", next);
+          setStoredUserName(next);
           setName(next);
         }}>
           <label className="react-field">顯示名稱<input value={draft} onChange={(event) => setDraft(event.target.value)} /></label>
@@ -773,13 +746,13 @@ function AccountView({ name, setName, words, progress }) {
 }
 
 export default function App() {
-  const [onboarded, setOnboarded] = useState(Boolean(localStorage.getItem("palabraOnboarded")));
-  const [name, setName] = useState(localStorage.getItem("palabraUserName") || "學習者");
+  const [onboarded, setOnboarded] = useState(isOnboardedStored());
+  const [name, setName] = useState(getStoredUserName());
   const [view, setView] = useState("lookup");
   const [words, setWords] = useState([]);
   const [vocabulary, setVocabulary] = useState([]);
   const [currentWord, setCurrentWord] = useState(null);
-  const [progress, setProgress] = useState(() => JSON.parse(localStorage.getItem("palabraProgress") || "{}"));
+  const [progress, setProgress] = useState(getStoredProgress);
   const [loading, setLoading] = useState(true);
   const learnerId = useMemo(getLearnerId, []);
 
@@ -795,7 +768,7 @@ export default function App() {
       .finally(() => setLoading(false));
   }, [learnerId, onboarded]);
 
-  useEffect(() => localStorage.setItem("palabraProgress", JSON.stringify(progress)), [progress]);
+  useEffect(() => setStoredProgress(progress), [progress]);
 
   if (!onboarded) return <Onboarding onDone={(displayName) => { setName(displayName); setOnboarded(true); }} />;
 
