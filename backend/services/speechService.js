@@ -5,22 +5,26 @@ async function synthesizeSpeech(text) {
   const url = new URL("https://texttospeech.googleapis.com/v1/text:synthesize");
   url.searchParams.set("key", apiKey);
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      input: { text },
-      voice: { languageCode: "es-ES", ssmlGender: "FEMALE" },
-      audioConfig: { audioEncoding: "MP3", speakingRate: 0.9 }
-    })
-  });
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { text },
+        voice: { languageCode: "es-ES", ssmlGender: "FEMALE" },
+        audioConfig: { audioEncoding: "MP3", speakingRate: 0.9 }
+      })
+    });
 
-  if (!response.ok) return { audioDataUrl: "", source: "browser fallback" };
-  const data = await response.json();
-  return {
-    audioDataUrl: data.audioContent ? `data:audio/mp3;base64,${data.audioContent}` : "",
-    source: "Google Cloud Text-to-Speech"
-  };
+    if (!response.ok) return { audioDataUrl: "", source: "browser fallback" };
+    const data = await response.json();
+    return {
+      audioDataUrl: data.audioContent ? `data:audio/mp3;base64,${data.audioContent}` : "",
+      source: "Google Cloud Text-to-Speech"
+    };
+  } catch {
+    return { audioDataUrl: "", source: "browser fallback" };
+  }
 }
 
 module.exports = { synthesizeSpeech };
