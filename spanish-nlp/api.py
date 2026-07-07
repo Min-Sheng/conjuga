@@ -1,9 +1,12 @@
 import json
+import logging
 from functools import lru_cache
 
 import simplemma
 from fastapi import FastAPI, HTTPException, Query
 from verbecc import CompleteConjugator
+
+logger = logging.getLogger("palabra_clara_nlp")
 
 app = FastAPI(title="Palabra Clara NLP", version="0.1.0")
 
@@ -68,12 +71,13 @@ def health() -> dict:
 
 
 @app.get("/verbs/lookup")
-def lookup_verb(q: str = Query(..., min_length=1)) -> dict:
+def lookup_verb(q: str = Query(..., min_length=1, max_length=64)) -> dict:
     input_form = q.strip().lower()
     infinitive = resolve_infinitive(input_form)
     try:
         conjugations = conjugate(infinitive)
     except Exception as error:
+        logger.exception("Failed to conjugate infinitive %r (input %r)", infinitive, input_form)
         raise HTTPException(status_code=404, detail=f"找不到動詞「{input_form}」") from error
 
     if not conjugations:
