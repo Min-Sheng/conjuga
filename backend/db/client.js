@@ -6,13 +6,22 @@ function requireDatabaseUrl() {
   }
 }
 
+function sslConfig() {
+  if (process.env.DATABASE_SSL === "false") return false;
+  // Additive opt-in: default behavior (rejectUnauthorized: false) is
+  // unchanged unless DATABASE_SSL_REJECT_UNAUTHORIZED is explicitly set to
+  // "true", in which case certificate validation is enforced.
+  const rejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true";
+  return { rejectUnauthorized };
+}
+
 function getPool() {
   requireDatabaseUrl();
   if (!pool) {
     const { Pool } = require("pg");
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+      ssl: sslConfig()
     });
   }
   return pool;

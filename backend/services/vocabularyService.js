@@ -1,4 +1,5 @@
 const { query } = require("../db/client");
+const { EXAMPLES_JSON_AGG } = require("../db/sqlFragments");
 const { canonicalizeSpanishWord, normalize } = require("../utils/text");
 const { ensureLearner } = require("./learningService");
 
@@ -65,11 +66,7 @@ const VOCABULARY_SELECT = `
     w.source,
     w.created_at as word_created_at,
     w.updated_at as word_updated_at,
-    coalesce(
-      json_agg(json_build_object('id', e.id, 'es', e.es, 'zh', e.zh, 'en', e.en) order by e.created_at)
-      filter (where e.id is not null),
-      '[]'
-    ) as examples
+    ${EXAMPLES_JSON_AGG} as examples
   from learner_vocabulary lv
   join words w on w.id = lv.word_id
   left join examples e on e.word_id = w.id

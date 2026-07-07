@@ -1,4 +1,5 @@
 const { query, withTransaction } = require("../db/client");
+const { EXAMPLES_JSON_AGG } = require("../db/sqlFragments");
 const { canonicalizeSpanishWord, normalize, uniqueNormalized } = require("../utils/text");
 
 function toApiWord(row, examples = []) {
@@ -22,11 +23,7 @@ async function loadWordBank() {
   const result = await query(
     `select
       w.*,
-      coalesce(
-        json_agg(json_build_object('id', e.id, 'es', e.es, 'zh', e.zh, 'en', e.en) order by e.created_at)
-        filter (where e.id is not null),
-        '[]'
-      ) as examples
+      ${EXAMPLES_JSON_AGG} as examples
      from words w
      left join examples e on e.word_id = w.id
      group by w.id
@@ -40,11 +37,7 @@ async function findWord(rawWord) {
   const result = await query(
     `select
       w.*,
-      coalesce(
-        json_agg(json_build_object('id', e.id, 'es', e.es, 'zh', e.zh, 'en', e.en) order by e.created_at)
-        filter (where e.id is not null),
-       '[]'
-      ) as examples
+      ${EXAMPLES_JSON_AGG} as examples
      from words w
      left join examples e on e.word_id = w.id
      where lower(w.word) = lower($1)

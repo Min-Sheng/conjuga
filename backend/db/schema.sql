@@ -86,9 +86,12 @@ create table if not exists learner_vocabulary (
 
 create index if not exists examples_word_id_idx on examples(word_id);
 create index if not exists lookup_history_learner_created_idx on lookup_history(learner_id, created_at desc);
+create index if not exists lookup_history_word_id_idx on lookup_history(word_id);
 create index if not exists quiz_attempts_learner_created_idx on quiz_attempts(learner_id, created_at desc);
 create index if not exists quiz_attempts_word_idx on quiz_attempts(word_id);
+create index if not exists quiz_attempts_learner_target_idx on quiz_attempts(learner_id, target_word);
 create index if not exists word_reviews_due_idx on word_reviews(learner_id, due_at);
+create index if not exists word_reviews_word_id_idx on word_reviews(word_id);
 create index if not exists learner_vocabulary_learner_created_idx
   on learner_vocabulary(learner_id, created_at desc);
 create index if not exists learner_vocabulary_word_idx on learner_vocabulary(word_id);

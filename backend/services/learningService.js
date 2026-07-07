@@ -90,7 +90,7 @@ async function updateWordReview(payload) {
   const updated = await query(
     `insert into word_reviews
       (learner_id, word_id, target_word, repetition, interval_days, ease_factor, due_at, last_quality, last_result, updated_at)
-     values ($1, $2, $3, $4, $5, $6, now() + make_interval(days => $9::int), $7, $8, now())
+     values ($1, $2, $3, $4, $5, $6, now() + make_interval(days => $7::int), $8, $9, now())
      on conflict (learner_id, target_word) do update set
        word_id = excluded.word_id,
        repetition = excluded.repetition,
@@ -108,9 +108,9 @@ async function updateWordReview(payload) {
       next.repetition,
       next.intervalDays,
       next.easeFactor,
+      Math.round(next.intervalDays),
       next.quality,
-      payload.result,
-      Math.round(next.intervalDays)
+      payload.result
     ]
   );
   return getProgressItem(payload.learnerId, payload.targetWord, updated.rows[0]);

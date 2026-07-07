@@ -11,116 +11,107 @@ const { isValidUuid } = require("./utils/validation");
 
 // Only rejects when a learnerId value is actually present but malformed;
 // absent/empty learnerId keeps existing "anonymous" behavior for endpoints
-// that already tolerate it (e.g. recordLookup).
+// that already tolerate it (e.g. recordLookup via lookupWithSurfaceForm).
 function hasInvalidLearnerId(learnerId) {
   return Boolean(learnerId) && !isValidUuid(learnerId);
 }
 
-async function handleApi(request, response, url) {
-  if (request.method === "GET" && url.pathname === "/api/health") {
+function invalidLearnerIdResponse(response) {
+  sendJson(response, 400, { error: "learnerId must be a valid UUID" });
+}
+
+// Declarative route table: [method, pattern, handler]. `pattern` is either
+// an exact pathname string or a RegExp; when a RegExp is used its capture
+// groups are passed to the handler as `params`. Each handler receives
+// (request, response, context) where context = { url, params }.
+const routes = [
+  ["GET", "/api/health", async (request, response) => {
     sendJson(response, 200, { status: "ok" });
-    return true;
-  }
+  }],
 
-  if (request.method === "GET" && url.pathname === "/api/verbs/lookup") {
+  ["GET", "/api/verbs/lookup", async (request, response, { url }) => {
     sendJson(response, 200, await lookupVerb(url.searchParams.get("q")));
-    return true;
-  }
+  }],
 
-  if (request.method === "GET" && url.pathname === "/api/words") {
+  ["GET", "/api/words", async (request, response) => {
     sendJson(response, 200, await loadWordBank());
-    return true;
-  }
+  }],
 
-  if (request.method === "GET" && url.pathname === "/api/vocabulary") {
+  ["GET", "/api/vocabulary", async (request, response, { url }) => {
     const learnerId = url.searchParams.get("learnerId");
-    if (hasInvalidLearnerId(learnerId)) {
-      sendJson(response, 400, { error: "learnerId must be a valid UUID" });
-      return true;
-    }
+    if (hasInvalidLearnerId(learnerId)) return invalidLearnerIdResponse(response);
     sendJson(response, 200, await listVocabulary(learnerId));
-    return true;
-  }
+  }],
 
-  if (request.method === "POST" && url.pathname === "/api/vocabulary") {
+  ["POST", "/api/vocabulary", async (request, response) => {
     const body = await readJsonBody(request);
-    if (hasInvalidLearnerId(body.learnerId)) {
-      sendJson(response, 400, { error: "learnerId must be a valid UUID" });
-      return true;
-    }
+    if (hasInvalidLearnerId(body.learnerId)) return invalidLearnerIdResponse(response);
     const entry = await saveVocabularyEntry(body);
     if (!entry) {
       sendJson(response, 400, { error: "learnerId and word (or wordId) are required" });
-      return true;
+      return;
     }
     sendJson(response, 201, entry);
-    return true;
-  }
+  }],
 
-  const vocabularyPath = url.pathname.match(/^\/api\/vocabulary\/([^/]+)$/);
-  if (vocabularyPath && request.method === "DELETE") {
+  ["DELETE", /^\/api\/vocabulary\/([^/]+)$/, async (request, response, { url, params }) => {
     const learnerId = url.searchParams.get("learnerId");
-    if (hasInvalidLearnerId(learnerId)) {
-      sendJson(response, 400, { error: "learnerId must be a valid UUID" });
-      return true;
-    }
-    sendJson(
-      response,
-      200,
-      await removeVocabularyEntry(learnerId, decodeURIComponent(vocabularyPath[1]))
-    );
-    return true;
-  }
+    if (hasInvalidLearnerId(learnerId)) return invalidLearnerIdResponse(response);
+    sendJson(response, 200, await removeVocabularyEntry(learnerId, decodeURIComponent(params[0])));
+  }],
 
-  if (request.method === "POST" && url.pathname === "/api/lookup") {
+  ["POST", "/api/lookup", async (request, response) => {
     const body = await readJsonBody(request);
-    if (hasInvalidLearnerId(body.learnerId)) {
-      sendJson(response, 400, { error: "learnerId must be a valid UUID" });
-      return true;
-    }
+    if (hasInvalidLearnerId(body.learnerId)) return invalidLearnerIdResponse(response);
     sendJson(response, 200, await lookupWithSurfaceForm(body));
-    return true;
-  }
+  }],
 
-  if (request.method === "POST" && url.pathname === "/api/examples") {
+  ["POST", "/api/examples", async (request, response) => {
     const body = await readJsonBody(request);
     sendJson(response, 200, await generateExamples(body.word));
-    return true;
-  }
+  }],
 
-  if (request.method === "POST" && url.pathname === "/api/pronunciation") {
+  ["POST", "/api/pronunciation", async (request, response) => {
     const body = await readJsonBody(request);
     sendJson(response, 200, await synthesizeSpeech(body.text));
-    return true;
-  }
+  }],
 
-  if (request.method === "POST" && url.pathname === "/api/judge-answer") {
+  ["POST", "/api/judge-answer", async (request, response) => {
     const body = await readJsonBody(request);
     sendJson(response, 200, await judgeAnswer(body));
-    return true;
-  }
+  }],
 
-  if (request.method === "POST" && url.pathname === "/api/quiz-attempts") {
+  ["POST", "/api/quiz-attempts", async (request, response) => {
     const body = await readJsonBody(request);
-    if (hasInvalidLearnerId(body.learnerId)) {
-      sendJson(response, 400, { error: "learnerId must be a valid UUID" });
-      return true;
-    }
+    if (hasInvalidLearnerId(body.learnerId)) return invalidLearnerIdResponse(response);
     sendJson(response, 200, await recordQuizAttempt(body));
-    return true;
-  }
+  }],
 
-  if (request.method === "GET" && url.pathname === "/api/progress") {
+  ["GET", "/api/progress", async (request, response, { url }) => {
     const learnerId = url.searchParams.get("learnerId");
-    if (hasInvalidLearnerId(learnerId)) {
-      sendJson(response, 400, { error: "learnerId must be a valid UUID" });
-      return true;
-    }
+    if (hasInvalidLearnerId(learnerId)) return invalidLearnerIdResponse(response);
     sendJson(response, 200, await getProgress(learnerId));
-    return true;
-  }
+  }]
+];
 
-  return false;
+function matchRoute(method, pathname) {
+  for (const [routeMethod, pattern, handler] of routes) {
+    if (routeMethod !== method) continue;
+    if (typeof pattern === "string") {
+      if (pattern === pathname) return { handler, params: [] };
+    } else {
+      const match = pattern.exec(pathname);
+      if (match) return { handler, params: match.slice(1) };
+    }
+  }
+  return null;
+}
+
+async function handleApi(request, response, url) {
+  const matched = matchRoute(request.method, url.pathname);
+  if (!matched) return false;
+  await matched.handler(request, response, { url, params: matched.params });
+  return true;
 }
 
 module.exports = { handleApi };
