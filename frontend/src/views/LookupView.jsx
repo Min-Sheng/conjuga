@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { MobileHeader, Empty } from "../components/primitives";
 import { WordCard } from "../components/WordCard";
@@ -6,7 +6,7 @@ import { VerbConjugations } from "../components/verb/VerbConjugations";
 import { isVerb, normalize } from "../lib/wordUtils";
 import { speakSpanish } from "../lib/speech";
 
-export function LookupView({ words, setWords, vocabulary, learnerId, currentWord, setCurrentWord, onVocabularyChanged }) {
+export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, currentWord, setCurrentWord, onVocabularyChanged }) {
   const [query, setQuery] = useState(currentWord?.word || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -14,9 +14,13 @@ export function LookupView({ words, setWords, vocabulary, learnerId, currentWord
   const [verbBusy, setVerbBusy] = useState(false);
   const [lookupEntry, setLookupEntry] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Tracks the surface form whose conjugation result is already loaded into
+  // verbResult, so the currentWord-driven effect below doesn't re-fetch the
+  // same conjugation that lookup() just fetched (dedup fix, Phase 3c).
+  const loadedConjugationFormRef = useRef(null);
   const suggestions = query
-    ? words.filter((word) => normalize(word.word).includes(normalize(query))).slice(0, 8)
-    : words.slice(0, 8);
+    ? wordBank.filter((word) => normalize(word.word).includes(normalize(query))).slice(0, 8)
+    : wordBank.slice(0, 8);
 
   async function lookup(value = query) {
     const text = value.trim();
@@ -32,7 +36,7 @@ export function LookupView({ words, setWords, vocabulary, learnerId, currentWord
         conjugation = null;
       }
       const lookupText = conjugation?.infinitive || text;
-      const local = words.find((word) => normalize(word.word) === normalize(lookupText));
+      const local = wordBank.find((word) => normalize(word.word) === normalize(lookupText));
       const formMatch = conjugation?.matches?.[0] || {};
       const entry = {
         surfaceForm: text.toLowerCase(),
@@ -44,7 +48,8 @@ export function LookupView({ words, setWords, vocabulary, learnerId, currentWord
       };
       const lookupResult = await api.lookup(lookupText, learnerId, entry);
       const word = lookupResult.word || local;
-      setWords((items) => [word, ...items.filter((item) => item.id !== word.id)]);
+      setWordBank((items) => [word, ...items.filter((item) => item.id !== word.id)]);
+      loadedConjugationFormRef.current = entry.surfaceForm;
       setCurrentWord({ ...word, lookupSurfaceForm: entry.surfaceForm, ...entry });
       setQuery(entry.surfaceForm);
       setVerbResult(conjugation);
@@ -61,10 +66,19 @@ export function LookupView({ words, setWords, vocabulary, learnerId, currentWord
       setVerbResult(null);
       return;
     }
+    const targetForm = currentWord.lookupSurfaceForm || currentWord.word;
+    if (loadedConjugationFormRef.current === targetForm) {
+      // lookup() already fetched and set verbResult for this exact form.
+      return;
+    }
     let active = true;
     setVerbBusy(true);
-    api.conjugate(currentWord.lookupSurfaceForm || currentWord.word)
-      .then((result) => { if (active) setVerbResult(result); })
+    api.conjugate(targetForm)
+      .then((result) => {
+        if (!active) return;
+        loadedConjugationFormRef.current = targetForm;
+        setVerbResult(result);
+      })
       .catch(() => { if (active) setVerbResult(null); })
       .finally(() => { if (active) setVerbBusy(false); });
     return () => { active = false; };
@@ -99,6 +113,8 @@ export function LookupView({ words, setWords, vocabulary, learnerId, currentWord
         const saved = await api.saveVocabulary({ learnerId, ...lookupEntry });
         if (saved) onVocabularyChanged((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
       }
+    } catch (requestError) {
+      setError(requestError.message);
     } finally {
       setSaving(false);
     }
@@ -111,7 +127,9 @@ export function LookupView({ words, setWords, vocabulary, learnerId, currentWord
       const result = await api.examples({ ...word, word: targetForm });
       const updated = { ...word, examples: result.examples };
       setCurrentWord(updated);
-      setWords((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setWordBank((items) => items.map((item) => item.id === updated.id ? updated : item));
+    } catch (requestError) {
+      setError(requestError.message);
     } finally {
       setBusy(false);
     }
@@ -124,7 +142,7 @@ export function LookupView({ words, setWords, vocabulary, learnerId, currentWord
       <form className="ibv-search-shell" onSubmit={(event) => { event.preventDefault(); lookup(); }}>
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="casa, comer, feliz…" />
         <button type="button" className="ibv-btn ibv-btn-ghost" onClick={() => {
-          const random = words[Math.floor(Math.random() * words.length)];
+          const random = wordBank[Math.floor(Math.random() * wordBank.length)];
           if (random) lookup(random.word);
         }}>隨機</button>
         <button className="ibv-btn" disabled={busy}>{busy ? "查詢中…" : "查詢"}</button>

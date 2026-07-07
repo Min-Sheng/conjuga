@@ -231,3 +231,54 @@ export function buildConjugationChoiceQuestion(target, forms, {
     choices: shuffle([target.form, ...distractors], random)
   };
 }
+
+// Builds a general-word quiz session (choice or fill-in-the-blank questions)
+// from a pool of vocabulary entries. Pure function: no network I/O. Mirrors
+// the "words" branch previously inlined in QuizView.buildSession (see
+// .claude-work/refactor-plan.md Phase 3c).
+export function buildWordQuizSession(entries, {
+  includeConjugated = false,
+  unfamiliarOnly = false,
+  progress = {},
+  questionType = "choice",
+  size = 8,
+  random = Math.random
+} = {}) {
+  const pool = buildGeneralPool(entries, { includeConjugated, unfamiliarOnly, progress });
+  const selected = shuffle(pool, random).slice(0, Math.min(size, pool.length));
+  const questions = selected.map((word) => {
+    if (questionType === "blank") {
+      const question = buildFillQuestion(word);
+      return { ...question, kind: "word", type: "blank", sentence: question.prompt, translation: question.translationHint };
+    }
+    return { ...buildChoiceQuestion(word, pool, { random }), kind: "word", type: "choice" };
+  });
+  return { questions, poolSize: pool.length };
+}
+
+// Builds a verb-conjugation quiz session from already-fetched conjugation
+// results (the network call to fetch conjugations for each infinitive must
+// happen in the caller; this function only does the pure post-processing:
+// flatten -> filter -> pick -> build choice questions). Mirrors the "verbs"
+// branch previously inlined in QuizView.buildSession.
+export function buildVerbQuizSession(conjugationResults, {
+  selectedTenses,
+  unfamiliarOnly = false,
+  progress = {},
+  size = 8,
+  findWord = () => null,
+  tenseLabel = (tense) => tense,
+  random = Math.random
+} = {}) {
+  const forms = (conjugationResults || []).filter(Boolean)
+    .flatMap((result) => flattenConjugations(result, selectedTenses))
+    .filter((target) => !unfamiliarOnly || progress[target.targetWord]?.mastery !== "mastered");
+  const questions = shuffle(forms, random).slice(0, Math.min(size, forms.length)).map((target) => ({
+    ...buildConjugationChoiceQuestion(target, forms, { random }),
+    kind: "verb",
+    type: "choice",
+    word: findWord(target.infinitive) || { word: target.infinitive },
+    title: `${target.infinitive} · ${tenseLabel(target.tense)}`
+  }));
+  return { questions, poolSize: forms.length };
+}

@@ -1,6 +1,6 @@
 import { NavIcon, navItems } from "./NavIcon";
 
-export function Sidebar({ view, setView, progress, words, name }) {
+export function Sidebar({ view, setView, progress, vocabulary, name }) {
   const stats = Object.values(progress);
   const mastered = stats.filter((item) => item.mastery === "mastered").length;
   const weak = stats.filter((item) => !item.mastery || item.mastery === "weak").length;
@@ -15,7 +15,7 @@ export function Sidebar({ view, setView, progress, words, name }) {
           <button key={id} className={`ibv-tab ${view === id ? "is-active" : ""}`} onClick={() => setView(id)}>
             <span className="ibv-tab-icon"><NavIcon id={id} /></span>{label}
             {id === "lookup" && <span className="ibv-tab-tail">⏎</span>}
-            {id === "library" && <span className="ibv-tab-tail">{words.length}</span>}
+            {id === "library" && <span className="ibv-tab-tail">{vocabulary.length}</span>}
             {id === "review" && <span className="ibv-tab-tail">{weak}</span>}
           </button>
         ))}

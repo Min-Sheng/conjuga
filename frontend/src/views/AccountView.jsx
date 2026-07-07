@@ -2,7 +2,7 @@ import { useState } from "react";
 import { MobileHeader, PageTitle } from "../components/primitives";
 import { setStoredUserName } from "../lib/learner";
 
-export function AccountView({ name, setName, words, progress }) {
+export function AccountView({ name, setName, vocabulary, progress }) {
   const [draft, setDraft] = useState(name);
   return (
     <section className="view is-active">
@@ -14,7 +14,7 @@ export function AccountView({ name, setName, words, progress }) {
           <div><div className="ibv-profile-name">{name}</div><div className="ibv-profile-email">本機學習者 · PostgreSQL 學習紀錄</div></div>
         </div>
         <div className="ibv-summary-grid">
-          <div className="ibv-summary"><div className="ibv-summary-val">{words.length}</div><div className="ibv-summary-lab">單字</div></div>
+          <div className="ibv-summary"><div className="ibv-summary-val">{vocabulary.length}</div><div className="ibv-summary-lab">單字</div></div>
           <div className="ibv-summary"><div className="ibv-summary-val">{Object.keys(progress).length}</div><div className="ibv-summary-lab">已練習</div></div>
         </div>
         <form className="react-account-form" onSubmit={(event) => {

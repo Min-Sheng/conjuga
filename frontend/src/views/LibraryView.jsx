@@ -4,13 +4,13 @@ import { VerbFormsHover } from "../components/verb/VerbFormsHover";
 import { isInfinitiveVerb, isVerb, normalize } from "../lib/wordUtils";
 import { moodLabels, tenseLabels } from "../verbLabels";
 
-export function LibraryView({ words, onOpen, onSpeak }) {
+export function LibraryView({ vocabulary, onOpen, onSpeak }) {
   const [query, setQuery] = useState("");
   const [section, setSection] = useState("all");
   const [mode, setMode] = useState("cards");
   const [cardIndex, setCardIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const filtered = words.filter((word) => {
+  const filtered = vocabulary.filter((word) => {
     if (!normalize(`${word.word} ${word.zh} ${word.en}`).includes(normalize(query))) return false;
     if (section === "general") {
       return !isVerb(word) || isInfinitiveVerb(word);

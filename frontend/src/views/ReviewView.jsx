@@ -2,10 +2,10 @@ import { useState } from "react";
 import { MobileHeader, Empty } from "../components/primitives";
 import { moodLabels, tenseLabels } from "../verbLabels";
 
-export function ReviewView({ words, progress, onOpen }) {
+export function ReviewView({ vocabulary, progress, onOpen }) {
   const [status, setStatus] = useState("unfamiliar");
   const [kind, setKind] = useState("all");
-  const wordBySurface = new Map(words.map((word) => [word.word, word]));
+  const wordBySurface = new Map(vocabulary.map((word) => [word.word, word]));
   const items = Object.entries(progress).map(([targetWord, item]) => {
     const word = wordBySurface.get(targetWord);
     const conjugation = !word && targetWord.includes(":");

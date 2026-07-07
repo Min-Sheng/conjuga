@@ -6,6 +6,8 @@ import {
   buildConjugationChoiceQuestion,
   buildFillQuestion,
   buildGeneralPool,
+  buildVerbQuizSession,
+  buildWordQuizSession,
   evaluateFillAnswer,
   flattenConjugations,
   shuffle
@@ -194,4 +196,104 @@ test("buildConjugationChoiceQuestion prioritizes same verb and tense distractors
   assert.ok(question.choices.includes("hablas"));
   assert.ok(question.choices.includes("habla"));
   assert.ok(!question.choices.includes("hablaré"));
+});
+
+test("buildWordQuizSession builds choice questions from the filtered pool", () => {
+  const entries = [
+    { id: "one", word: "casa", zh: "房子" },
+    { id: "two", surfaceForm: "hablé", formKind: "conjugated", word: { word: "hablar" } },
+    { id: "three", surfaceForm: "comer", formKind: "lemma", word: { word: "comer" } }
+  ];
+  const { questions, poolSize } = buildWordQuizSession(entries, {
+    questionType: "choice",
+    size: 10,
+    random: zeroRandom
+  });
+
+  // conjugated entry excluded by default (includeConjugated: false)
+  assert.equal(poolSize, 2);
+  assert.equal(questions.length, 2);
+  for (const question of questions) {
+    assert.equal(question.kind, "word");
+    assert.equal(question.type, "choice");
+    assert.ok(question.choices.includes(question.answer));
+  }
+});
+
+test("buildWordQuizSession builds fill-in-the-blank questions when requested", () => {
+  const entries = [
+    { id: "one", word: "café", zh: "咖啡", examples: [{ es: "Bebo café cada día.", zh: "我每天喝咖啡。" }] }
+  ];
+  const { questions, poolSize } = buildWordQuizSession(entries, {
+    questionType: "blank",
+    size: 5,
+    random: zeroRandom
+  });
+
+  assert.equal(poolSize, 1);
+  assert.equal(questions.length, 1);
+  assert.equal(questions[0].kind, "word");
+  assert.equal(questions[0].type, "blank");
+  assert.equal(questions[0].sentence, "Bebo ____ cada día.");
+});
+
+test("buildWordQuizSession respects unfamiliarOnly filtering and empty pool", () => {
+  const entries = [{ id: "one", word: "casa" }];
+  const progress = { one: { mastery: "mastered" } };
+  const { questions, poolSize } = buildWordQuizSession(entries, {
+    unfamiliarOnly: true,
+    progress,
+    size: 5
+  });
+
+  assert.equal(poolSize, 0);
+  assert.equal(questions.length, 0);
+});
+
+test("buildVerbQuizSession flattens conjugation results into choice questions", () => {
+  const conjugationResults = [
+    {
+      inputForm: "hablar",
+      infinitive: "hablar",
+      conjugations: {
+        indicativo: {
+          presente: [{ person: "yo", form: "hablo" }, { person: "tú", form: "hablas" }]
+        }
+      }
+    },
+    null // simulates a failed api.conjugate() call, already caught upstream
+  ];
+  const { questions, poolSize } = buildVerbQuizSession(conjugationResults, {
+    selectedTenses: ["indicativo:presente"],
+    size: 10,
+    random: zeroRandom,
+    findWord: (infinitive) => ({ word: infinitive, id: "w1" }),
+    tenseLabel: (tense) => tense
+  });
+
+  assert.equal(poolSize, 2);
+  assert.equal(questions.length, 2);
+  for (const question of questions) {
+    assert.equal(question.kind, "verb");
+    assert.equal(question.type, "choice");
+    assert.equal(question.word.id, "w1");
+  }
+});
+
+test("buildVerbQuizSession filters mastered targets when unfamiliarOnly is set", () => {
+  const conjugationResults = [{
+    inputForm: "hablar",
+    infinitive: "hablar",
+    conjugations: { indicativo: { presente: [{ person: "yo", form: "hablo" }] } }
+  }];
+  const progress = { "hablar:indicativo:presente:yo": { mastery: "mastered" } };
+  const { questions, poolSize } = buildVerbQuizSession(conjugationResults, {
+    selectedTenses: ["indicativo:presente"],
+    unfamiliarOnly: true,
+    progress,
+    size: 10
+  });
+
+  assert.equal(poolSize, 0);
+  assert.equal(questions.length, 0);
 });

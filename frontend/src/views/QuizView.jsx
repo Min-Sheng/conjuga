@@ -5,16 +5,12 @@ import { isVerb, normalize } from "../lib/wordUtils";
 import { quizEntryWord } from "../lib/entryAdapters";
 import { tenseLabels } from "../verbLabels";
 import {
-  buildChoiceQuestion,
-  buildConjugationChoiceQuestion,
-  buildFillQuestion,
-  buildGeneralPool,
-  evaluateFillAnswer,
-  flattenConjugations,
-  shuffle
+  buildVerbQuizSession,
+  buildWordQuizSession,
+  evaluateFillAnswer
 } from "../quizUtils";
 
-export function QuizView({ words, vocabulary, progress, learnerId, onProgress }) {
+export function QuizView({ wordBank, vocabulary, progress, learnerId, onProgress }) {
   const [mode, setMode] = useState("words");
   const [phase, setPhase] = useState("setup");
   const [questionType, setQuestionType] = useState("choice");
@@ -28,6 +24,7 @@ export function QuizView({ words, vocabulary, progress, learnerId, onProgress })
   const [feedback, setFeedback] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [emptyReason, setEmptyReason] = useState("");
 
   const generalEntries = useMemo(
     () => (vocabulary || []).map(quizEntryWord),
@@ -39,35 +36,59 @@ export function QuizView({ words, vocabulary, progress, learnerId, onProgress })
     setFeedback(null);
     setResults([]);
     setIndex(0);
+    setEmptyReason("");
     try {
       if (mode === "words") {
-        const pool = buildGeneralPool(generalEntries, { includeConjugated, unfamiliarOnly, progress });
-        const selected = shuffle(pool).slice(0, Math.min(size, pool.length));
-        const built = selected.map((word) => {
-          if (questionType === "blank") {
-            const question = buildFillQuestion(word);
-            return { ...question, kind: "word", type: "blank", sentence: question.prompt, translation: question.translationHint };
-          }
-          return { ...buildChoiceQuestion(word, pool), kind: "word", type: "choice" };
+        const { questions: built, poolSize } = buildWordQuizSession(generalEntries, {
+          includeConjugated,
+          unfamiliarOnly,
+          progress,
+          questionType,
+          size
         });
         setQuestions(built);
-        setPhase(built.length ? "active" : "setup");
+        if (built.length) {
+          setPhase("active");
+        } else {
+          setPhase("setup");
+          setEmptyReason(
+            poolSize === 0
+              ? (unfamiliarOnly
+                ? "目前收藏的單字都已標記為熟悉，取消「只測驗不熟悉內容」或先收藏更多單字。"
+                : "單字庫還沒有可用單字，請先在「查詢」加入幾個單字到收藏。")
+              : "題數設定過小或篩選條件過嚴，請調整後再試一次。"
+          );
+        }
         return;
       }
 
       const infinitives = [...new Set(generalEntries.filter(isVerb).map((entry) => entry.lemma || entry.word))];
+      if (!infinitives.length) {
+        setQuestions([]);
+        setPhase("setup");
+        setEmptyReason("收藏的單字庫中還沒有動詞，請先查詢並收藏一個動詞。");
+        return;
+      }
       const conjugations = await Promise.all(infinitives.map((verb) => api.conjugate(verb).catch(() => null)));
-      const forms = conjugations.filter(Boolean).flatMap((result) => flattenConjugations(result, selectedTenses))
-        .filter((target) => !unfamiliarOnly || progress[target.targetWord]?.mastery !== "mastered");
-      const built = shuffle(forms).slice(0, Math.min(size, forms.length)).map((target) => ({
-        ...buildConjugationChoiceQuestion(target, forms),
-        kind: "verb",
-        type: "choice",
-        word: words.find((item) => normalize(item.word) === normalize(target.infinitive)) || { word: target.infinitive },
-        title: `${target.infinitive} · ${tenseLabels[target.tense] || target.tense}`
-      }));
+      const { questions: built, poolSize } = buildVerbQuizSession(conjugations, {
+        selectedTenses,
+        unfamiliarOnly,
+        progress,
+        size,
+        findWord: (infinitive) => wordBank.find((item) => normalize(item.word) === normalize(infinitive)),
+        tenseLabel: (tense) => tenseLabels[tense] || tense
+      });
       setQuestions(built);
-      setPhase(built.length ? "active" : "setup");
+      if (built.length) {
+        setPhase("active");
+      } else {
+        setPhase("setup");
+        setEmptyReason(
+          poolSize === 0
+            ? "所選時態沒有可用的變位形式，請調整時態或勾選其他選項。"
+            : "目前收藏的變位都已標記為熟悉，取消「只測驗不熟悉內容」或先收藏更多變位。"
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -83,8 +104,8 @@ export function QuizView({ words, vocabulary, progress, learnerId, onProgress })
         judged = await api.judgeAnswer({
           userAnswer: value,
           targetWord: question.answer,
-          acceptedAnswers: question.word.acceptedAnswers || question.word.accepted_answers || [],
-          nearAnswers: question.word.nearAnswers || question.word.near_answers || [],
+          acceptedAnswers: question.word.acceptedAnswers || [],
+          nearAnswers: question.word.nearAnswers || [],
           zh: question.word.zh,
           en: question.word.en
         }).catch(() => judged);
@@ -131,7 +152,7 @@ export function QuizView({ words, vocabulary, progress, learnerId, onProgress })
     ["imperativo:afirmativo", "肯定命令式"]
   ];
 
-  if (!words.length) return <Empty title="還沒有題目">先查詢幾個單字建立題庫。</Empty>;
+  if (!vocabulary.length) return <Empty title="還沒有題目">先查詢幾個單字並加入單字庫建立題庫。</Empty>;
   return <section className="view is-active">
     <MobileHeader title="測驗" />
     <div className="ibv-quiz">
@@ -163,6 +184,7 @@ export function QuizView({ words, vocabulary, progress, learnerId, onProgress })
           <label className="ibv-quiz-focus"><input type="checkbox" checked={unfamiliarOnly} onChange={(event) => setUnfamiliarOnly(event.target.checked)} /><span className="ibv-toggle-vis" /><span>只測驗不熟悉內容</span></label>
           <label className="ibv-quiz-size-label">題數<input className="ibv-quiz-size-input" type="number" min="1" max="30" value={size} onChange={(event) => setSize(Math.max(1, Math.min(30, Number(event.target.value) || 1)))} /></label>
         </div>
+        {emptyReason && <p className="ibv-quiz-empty-reason" role="alert">{emptyReason}</p>}
         <button className="ibv-btn quiz-start-btn" disabled={loading || (mode === "verbs" && !selectedTenses.length)} onClick={buildSession}>{loading ? "正在建立題目…" : "開始測驗"}</button>
       </article>}
 
