@@ -82,6 +82,80 @@ test("evaluateFillAnswer keeps accent differences incorrect with a hint", () => 
   assert.match(result.feedback, /重音/);
 });
 
+// Shared judge vectors (mirrored from backend/services/judgeVectors.test-data.js).
+// These lock evaluateFillAnswer's "accepted / near / accentless" judging to the
+// same behavior as backend judgeService.judgeAnswer's local judging tier, per
+// .claude-work/refactor-plan.md Phase 0.5. Keep both copies in sync.
+//
+// Known divergence (not fixed here, per Phase 0's "lock current behavior"
+// rule): judgeService's local tier normalizes via trim().toLowerCase() only,
+// while evaluateFillAnswer also collapses internal whitespace via
+// normalized(). So an answer like "la   casa" (extra internal spaces) is
+// "correct" here but would be "incorrect" against the backend local judging
+// tier. None of the vectors below exercise that gap.
+const judgeVectors = [
+  {
+    id: "exact-match",
+    targetWord: "casa",
+    acceptedAnswers: [],
+    nearAnswers: [],
+    userAnswer: "casa",
+    expectedResult: "correct"
+  },
+  {
+    id: "case-insensitive",
+    targetWord: "casa",
+    acceptedAnswers: [],
+    nearAnswers: [],
+    userAnswer: "  CASA ",
+    expectedResult: "correct"
+  },
+  {
+    id: "accepted-alias",
+    targetWord: "casa",
+    acceptedAnswers: ["la casa"],
+    nearAnswers: [],
+    userAnswer: "la casa",
+    expectedResult: "correct"
+  },
+  {
+    id: "near-answer",
+    targetWord: "casa",
+    acceptedAnswers: ["la casa"],
+    nearAnswers: ["hogar"],
+    userAnswer: "HOGAR",
+    expectedResult: "acceptable"
+  },
+  {
+    id: "accent-difference",
+    targetWord: "café",
+    acceptedAnswers: [],
+    nearAnswers: [],
+    userAnswer: "cafe",
+    expectedResult: "incorrect"
+  },
+  {
+    id: "unrelated-wrong",
+    targetWord: "casa",
+    acceptedAnswers: ["la casa"],
+    nearAnswers: ["hogar"],
+    userAnswer: "caso",
+    expectedResult: "incorrect"
+  }
+];
+
+for (const vector of judgeVectors) {
+  test(`evaluateFillAnswer[shared-vector]: ${vector.id}`, () => {
+    const question = {
+      answer: vector.targetWord,
+      acceptedAnswers: vector.acceptedAnswers,
+      nearAnswers: vector.nearAnswers
+    };
+    const result = evaluateFillAnswer(vector.userAnswer, question);
+    assert.equal(result.result, vector.expectedResult, `vector ${vector.id}: expected ${vector.expectedResult}, got ${result.result}`);
+  });
+}
+
 test("flattenConjugations filters mood and tense selections", () => {
   const result = {
     inputForm: "hablar",

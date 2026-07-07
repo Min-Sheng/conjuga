@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js && node --check routes.js && node --check services/learningService.js && node --check services/vocabularyService.js && node --check services/verbService.js",
-    "test": "node --test services/*.test.js",
+    "test": "node --test services/*.test.js utils/*.test.js",
     "db:init": "node scripts/init-db.js",
     "db:import": "node scripts/import-word-bank.js"
   },

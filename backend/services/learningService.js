@@ -201,4 +201,14 @@ async function getLookupHistory(learnerId, limit = 30) {
   return result.rows;
 }
 
-module.exports = { ensureLearner, getLookupHistory, getProgress, recordLookup, recordQuizAttempt };
+module.exports = {
+  ensureLearner,
+  getLookupHistory,
+  getProgress,
+  masteryStatus,
+  nextReviewState,
+  qualityForResult,
+  recordLookup,
+  recordQuizAttempt,
+  updateEaseFactor
+};
