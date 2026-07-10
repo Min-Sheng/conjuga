@@ -9,7 +9,7 @@
 - 使用 Postgres 儲存單字、例句、查詢紀錄、測驗紀錄與弱點進度
 - `backend/data/words.json` 保留作為初始匯入種子資料
 - 西班牙文單字發音播放，可接 Google Cloud Text-to-Speech，未設定金鑰時使用瀏覽器 Web Speech
-- 可用 MyMemory 或 Google Cloud Translation 取得中英文翻譯
+- 中英文翻譯預設由 AI（Groq／OpenAI-compatible）產生，也可改用 Google Cloud Translation
 - 可用 FreeDictionaryAPI 補新單字詞性與 IPA 音標
 - 可用 Groq 或 OpenAI-compatible API 產生例句與模糊判讀
 - 選擇題與填空題測驗
@@ -197,7 +197,7 @@ espanol_palabra/
 - `GET /api/vocabulary?learnerId=...`：取得使用者明確收藏的單字
 - `POST /api/vocabulary`：將查詢結果加入單字庫（`learnerId` 需為合法 UUID，且需附 `word` 或 `wordId`，否則回 400）
 - `DELETE /api/vocabulary/:surfaceForm?learnerId=...`：從單字庫移除指定形式
-- `POST /api/lookup`：查詢單字，先查 Postgres 字庫，查不到時可用 MyMemory/Google 翻譯和 AI 例句
+- `POST /api/lookup`：查詢單字，先查 Postgres 字庫，查不到時用 AI（或 Google）翻譯和 AI 例句補齊
 - `POST /api/examples`：可用 AI 產生例句
 - `POST /api/pronunciation`：可用 Google Cloud Text-to-Speech 產生發音，否則前端退回 Web Speech
 - `POST /api/judge-answer`：填空題模糊答案 AI 判讀
@@ -210,14 +210,7 @@ espanol_palabra/
 
 ## 免費服務設定
 
-翻譯預設使用 MyMemory：
-
-```env
-TRANSLATION_PROVIDER=mymemory
-MYMEMORY_EMAIL=
-```
-
-`MYMEMORY_EMAIL` 可不填；填 email 時 MyMemory 免費額度通常較高。若未來要改 Google：
+翻譯預設走 AI（與例句、多重詞義同一條 AI 管線，見下方 AI 設定；未設 AI key 時翻譯欄位會留空並顯示「尚無中文翻譯」等 fallback 文案）。若要改用 Google Cloud Translation：
 
 ```env
 TRANSLATION_PROVIDER=google
@@ -260,7 +253,7 @@ docker compose up --build
 
 Postgres 與後端服務會自動啟動與配置，無需手動設定 `DATABASE_URL`。
 
-`docker-compose.yml` 的 `backend.env_file` 會載入根目錄 `.env`，但 `backend.environment` 中列出的變數（`DATABASE_URL`、`DATABASE_SSL`、`NLP_SERVICE_URL`、`PORT`、`TRANSLATION_PROVIDER`、`MYMEMORY_EMAIL`、`AI_PROVIDER`）會覆蓋 `.env` 中同名設定——這些是容器內連線用的固定值，`.env` 裡對應變數不會生效。`.env` 主要用來提供 API key（`GROQ_API_KEY`、`GOOGLE_TRANSLATE_API_KEY`、`GOOGLE_TTS_API_KEY` 等）；即使不需要覆寫任何變數，`.env` 檔本身仍是必要檔案（`env_file: .env`），沒有這個檔案 `docker compose up` 會直接失敗，建議先複製 `.env.example` 為 `.env`。
+`docker-compose.yml` 的 `backend.env_file` 會載入根目錄 `.env`，但 `backend.environment` 中列出的變數（`DATABASE_URL`、`DATABASE_SSL`、`NLP_SERVICE_URL`、`PORT`）會覆蓋 `.env` 中同名設定——這些是容器內連線用的固定值，`.env` 裡對應變數不會生效。`.env` 主要用來提供 API key（`GROQ_API_KEY`、`GOOGLE_TRANSLATE_API_KEY`、`GOOGLE_TTS_API_KEY` 等）；即使不需要覆寫任何變數，`.env` 檔本身仍是必要檔案（`env_file: .env`），沒有這個檔案 `docker compose up` 會直接失敗，建議先複製 `.env.example` 為 `.env`。
 
 ### 本機 Postgres
 

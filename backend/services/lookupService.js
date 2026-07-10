@@ -89,7 +89,7 @@ async function lookupWord(rawWord) {
     senses,
     examples: examples.examples
   };
-  const translationSource = process.env.TRANSLATION_PROVIDER === "google" ? "Google Translate" : "MyMemory";
+  const translationSource = process.env.TRANSLATION_PROVIDER === "google" ? "Google Translate" : "AI translation";
   const savedWord = await saveWord(generatedWord, "lookup generated");
   const sources = [
     zh || en ? translationSource : "local fallback translation",

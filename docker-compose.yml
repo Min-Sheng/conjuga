@@ -36,9 +36,6 @@ services:
       DATABASE_SSL: "false"
       NLP_SERVICE_URL: http://nlp:8000
       PORT: 3000
-      TRANSLATION_PROVIDER: mymemory
-      MYMEMORY_EMAIL: ""
-      AI_PROVIDER: groq
     ports:
       - "3000:3000"
     depends_on:

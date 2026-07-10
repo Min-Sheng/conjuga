@@ -1,61 +1,27 @@
+const { callAiJson } = require("./aiService");
+
 function normalizeTarget(target) {
   if (target === "zh" || target === "zh-TW") return "zh-TW";
   if (target === "en") return "en";
   return target;
 }
 
-function scoreMyMemoryMatch(match) {
-  const quality = Number(match.quality || 0);
-  const usage = Number(match["usage-count"] || 0);
-  const matchScore = Number(match.match || 0);
-  return quality * 100 + usage + matchScore;
-}
-
-function isLikelyTargetTranslation(text, target) {
-  const value = String(text || "").trim();
-  if (!value) return false;
-  if (normalizeTarget(target) === "zh-TW") {
-    return /[\u3400-\u9fff]/.test(value) && !/[\u0600-\u06ff]/.test(value);
-  }
-  return true;
-}
-
-function chooseMyMemoryTranslation(data, target) {
-  const matches = Array.isArray(data.matches) ? data.matches : [];
-  const qualityMatches = matches
-    .filter((match) => String(match.translation || "").trim())
-    .filter((match) => isLikelyTargetTranslation(match.translation, target))
-    .filter((match) => Number(match.quality || 0) > 0)
-    .sort((a, b) => scoreMyMemoryMatch(b) - scoreMyMemoryMatch(a));
-
-  if (qualityMatches[0]) return qualityMatches[0].translation;
-  if (isLikelyTargetTranslation(data.responseData?.translatedText, target)) {
-    return data.responseData.translatedText;
-  }
-  return "";
-}
-
-async function translateWithMyMemory(text, target) {
-  const url = new URL("https://api.mymemory.translated.net/get");
-  url.searchParams.set("q", text);
-  url.searchParams.set("langpair", `es|${normalizeTarget(target)}`);
-  if (process.env.MYMEMORY_EMAIL) {
-    url.searchParams.set("de", process.env.MYMEMORY_EMAIL);
-  }
-
-  let response;
-  try {
-    response = await fetch(url);
-  } catch (error) {
-    return "";
-  }
-  if (!response.ok) return "";
-  try {
-    const data = await response.json();
-    return chooseMyMemoryTranslation(data, target);
-  } catch (error) {
-    return "";
-  }
+// Default translator: the same AI pipeline that powers examples and word
+// senses. Returns "" when no AI key is configured or the call fails, so
+// callers keep their existing fallbacks (e.g. 尚無中文翻譯).
+async function translateWithAi(text, target) {
+  const language = normalizeTarget(target) === "zh-TW" ? "Traditional Chinese (zh-TW)" : "English";
+  const result = await callAiJson(
+    [
+      {
+        role: "system",
+        content: `Return only JSON shaped {"translation": "…"}. Translate the given Spanish text into ${language}: a short, natural dictionary-style rendering with no explanations.`
+      },
+      { role: "user", content: JSON.stringify({ spanish: text }) }
+    ],
+    null
+  );
+  return typeof result?.translation === "string" ? result.translation.trim() : "";
 }
 
 async function translateWithGoogle(text, target) {
@@ -68,7 +34,7 @@ async function translateWithGoogle(text, target) {
     response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ q: text, source: "es", target, format: "text" })
+      body: JSON.stringify({ q: text, source: "es", target: normalizeTarget(target), format: "text" })
     });
   } catch (error) {
     return "";
@@ -84,13 +50,10 @@ async function translateWithGoogle(text, target) {
 }
 
 async function translateText(text, target) {
-  const provider = process.env.TRANSLATION_PROVIDER || "mymemory";
-
-  if (provider === "google") {
+  if (process.env.TRANSLATION_PROVIDER === "google") {
     return translateWithGoogle(text, target);
   }
-
-  return translateWithMyMemory(text, target);
+  return translateWithAi(text, target);
 }
 
 module.exports = { translateText };
