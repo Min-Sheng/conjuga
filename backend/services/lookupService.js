@@ -64,12 +64,36 @@ async function lookupWord(rawWord) {
   };
 }
 
+// Parts that don't justify a standalone entry for a conjugated surface form:
+// dictionary miss, unknown, or a verb-only reading (the infinitive entry
+// already covers those).
+const VERB_ONLY_PARTS = new Set(["", "unknown", "verbo"]);
+
+// A conjugated form can double as a standalone word (esposa: wife / esposar,
+// vino: wine / venir). Return that word's entry when the word bank or the
+// dictionary knows the surface form as a non-verb headword; never fabricate
+// entries for forms that only exist as conjugations (fui).
+async function lookupStandaloneSurfaceWord(surfaceForm, mainWordId) {
+  try {
+    const existing = await findWord(surfaceForm);
+    if (existing) return existing.id === mainWordId ? null : existing;
+    const lexical = await lookupLexicalInfo(surfaceForm);
+    if (VERB_ONLY_PARTS.has(String(lexical.part || "").trim().toLowerCase())) return null;
+    const generated = await lookupWord(surfaceForm);
+    return generated.word;
+  } catch {
+    return null;
+  }
+}
+
 async function lookupWithSurfaceForm({ word, surfaceForm: rawSurfaceForm, learnerId }) {
   const result = await lookupWord(word);
   const surfaceForm = String(rawSurfaceForm || word || "").trim().toLowerCase();
   let responseWord = result.word;
+  let surfaceWord = null;
 
   if (surfaceForm && surfaceForm !== result.word?.word) {
+    surfaceWord = await lookupStandaloneSurfaceWord(surfaceForm, result.word?.id);
     const generated = await generateExamples({ ...result.word, word: surfaceForm });
     const firstExample = generated.examples.find((example) =>
       String(example.es || "").toLowerCase().includes(surfaceForm)
@@ -92,7 +116,7 @@ async function lookupWithSurfaceForm({ word, surfaceForm: rawSurfaceForm, learne
     source: result.source
   });
 
-  return { ...result, word: responseWord };
+  return { ...result, word: responseWord, surfaceWord };
 }
 
 module.exports = { lookupWithSurfaceForm, lookupWord };

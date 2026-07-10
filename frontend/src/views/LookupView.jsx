@@ -13,6 +13,9 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
   const [verbResult, setVerbResult] = useState(null);
   const [verbBusy, setVerbBusy] = useState(false);
   const [lookupEntry, setLookupEntry] = useState(null);
+  // Set when the looked-up form is both a standalone word and a conjugation
+  // (esposa: wife / esposar) — holds the standalone word's entry.
+  const [surfaceWord, setSurfaceWord] = useState(null);
   const [saving, setSaving] = useState(false);
   // Tracks the surface form whose conjugation result is already loaded into
   // verbResult, so the currentWord-driven effect below doesn't re-fetch the
@@ -28,6 +31,7 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
     setBusy(true);
     setError("");
     setVerbResult(null);
+    setSurfaceWord(null);
     try {
       let conjugation = null;
       try {
@@ -48,7 +52,13 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
       };
       const lookupResult = await api.lookup(lookupText, learnerId, entry);
       const word = lookupResult.word || local;
-      setWordBank((items) => [word, ...items.filter((item) => item.id !== word.id)]);
+      const standalone = lookupResult.surfaceWord || null;
+      setWordBank((items) => {
+        let next = [word, ...items.filter((item) => item.id !== word.id)];
+        if (standalone) next = [standalone, ...next.filter((item) => item.id !== standalone.id)];
+        return next;
+      });
+      setSurfaceWord(standalone);
       loadedConjugationFormRef.current = entry.surfaceForm;
       setCurrentWord({ ...word, lookupSurfaceForm: entry.surfaceForm, ...entry });
       setQuery(entry.surfaceForm);
@@ -86,6 +96,11 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
 
   useEffect(() => {
     if (!currentWord) return;
+    setSurfaceWord((current) =>
+      current && normalize(currentWord.lookupSurfaceForm || currentWord.word) === normalize(current.word)
+        ? current
+        : null
+    );
     setLookupEntry({
       wordId: currentWord.wordId || currentWord.id,
       surfaceForm: currentWord.lookupSurfaceForm || currentWord.word,
@@ -97,20 +112,25 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
     });
   }, [currentWord]);
 
-  const vocabularySaved = lookupEntry && vocabulary.some(
-    (item) => normalize(item.surfaceForm) === normalize(lookupEntry.surfaceForm)
+  // Vocabulary is unique per surface form, so an ambiguous form gets one save
+  // slot: the standalone (non-verb) reading wins when it exists.
+  const activeEntry = surfaceWord
+    ? { wordId: surfaceWord.id, surfaceForm: surfaceWord.word, lemma: surfaceWord.word, formKind: "lemma" }
+    : lookupEntry;
+  const vocabularySaved = activeEntry && vocabulary.some(
+    (item) => normalize(item.surfaceForm) === normalize(activeEntry.surfaceForm)
   );
   async function toggleVocabulary() {
-    if (!lookupEntry || saving) return;
+    if (!activeEntry || saving) return;
     setSaving(true);
     try {
       if (vocabularySaved) {
-        await api.removeVocabulary(lookupEntry.surfaceForm, learnerId);
+        await api.removeVocabulary(activeEntry.surfaceForm, learnerId);
         onVocabularyChanged((items) => items.filter(
-          (item) => normalize(item.surfaceForm) !== normalize(lookupEntry.surfaceForm)
+          (item) => normalize(item.surfaceForm) !== normalize(activeEntry.surfaceForm)
         ));
       } else {
-        const saved = await api.saveVocabulary({ learnerId, ...lookupEntry });
+        const saved = await api.saveVocabulary({ learnerId, ...activeEntry });
         if (saved) onVocabularyChanged((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
       }
     } catch (requestError) {
@@ -120,13 +140,13 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
     }
   }
 
-  async function regenerate(word) {
+  async function regenerate(word, applyUpdate = setCurrentWord, targetFormOverride = null) {
     setBusy(true);
     try {
-      const targetForm = lookupEntry?.surfaceForm || word.lookupSurfaceForm || word.word;
+      const targetForm = targetFormOverride || lookupEntry?.surfaceForm || word.lookupSurfaceForm || word.word;
       const result = await api.examples({ ...word, word: targetForm });
       const updated = { ...word, examples: result.examples };
-      setCurrentWord(updated);
+      applyUpdate(updated);
       setWordBank((items) => items.map((item) => item.id === updated.id ? updated : item));
     } catch (requestError) {
       setError(requestError.message);
@@ -134,6 +154,12 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
       setBusy(false);
     }
   }
+
+  const saveButton = activeEntry && (
+    <button className={`ibv-btn ibv-save-word ${vocabularySaved ? "ibv-btn-ghost" : ""}`} onClick={toggleVocabulary} disabled={saving}>
+      {saving ? "處理中…" : vocabularySaved ? "✓ 已加入單字庫" : "＋ 加入單字庫"}
+    </button>
+  );
 
   return (
     <section className="view is-active">
@@ -152,14 +178,26 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
       </div>
       {busy ? <Empty title={`正在查詢「${query.trim()}」`}>正在整理詞義、例句與動詞分析。</Empty> :
         error ? <Empty title="查詢失敗">{error}</Empty> :
+        <>
+        {surfaceWord && <>
+          <WordCard
+            word={surfaceWord}
+            onSpeak={speakSpanish}
+            onRegenerate={(word) => regenerate(word, setSurfaceWord, word.word)}
+            loading={busy}
+            headerAction={saveButton}
+          />
+          <div className="verb-origin-card">
+            <span className="ibv-eyebrow">También verbo</span>
+            <p><i>{surfaceWord.word}</i> 也是動詞 <strong>{currentWord?.word}</strong> 的變位，動詞解讀如下</p>
+          </div>
+        </>}
         <WordCard
           word={currentWord}
           onSpeak={speakSpanish}
           onRegenerate={regenerate}
           loading={busy}
-          headerAction={lookupEntry && <button className={`ibv-btn ibv-save-word ${vocabularySaved ? "ibv-btn-ghost" : ""}`} onClick={toggleVocabulary} disabled={saving}>
-            {saving ? "處理中…" : vocabularySaved ? "✓ 已加入單字庫" : "＋ 加入單字庫"}
-          </button>}
+          headerAction={!surfaceWord && saveButton}
         >
           {(verbBusy || verbResult) && <div className="word-verb-extension">
             <div className="word-verb-heading">
@@ -175,7 +213,8 @@ export function LookupView({ wordBank, setWordBank, vocabulary, learnerId, curre
             {verbBusy && <p className="verb-loading">正在載入完整變位…</p>}
             {verbResult && <VerbConjugations result={verbResult} />}
           </div>}
-        </WordCard>}
+        </WordCard>
+        </>}
     </section>
   );
 }
