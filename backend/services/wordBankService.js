@@ -1,5 +1,5 @@
 const { query, withTransaction } = require("../db/client");
-const { EXAMPLES_JSON_AGG } = require("../db/sqlFragments");
+const { EXAMPLES_JSON_AGG, SENSES_JSON } = require("../db/sqlFragments");
 const { canonicalizeSpanishWord, normalize, uniqueNormalized } = require("../utils/text");
 
 function toApiWord(row, examples = []) {
@@ -15,6 +15,7 @@ function toApiWord(row, examples = []) {
     acceptedAnswers: row.accepted_answers || [],
     nearAnswers: row.near_answers || [],
     source: row.source || "",
+    senses: row.senses || [],
     examples
   };
 }
@@ -23,6 +24,7 @@ async function loadWordBank() {
   const result = await query(
     `select
       w.*,
+      ${SENSES_JSON} as senses,
       ${EXAMPLES_JSON_AGG} as examples
      from words w
      left join examples e on e.word_id = w.id
@@ -37,6 +39,7 @@ async function findWord(rawWord) {
   const result = await query(
     `select
       w.*,
+      ${SENSES_JSON} as senses,
       ${EXAMPLES_JSON_AGG} as examples
      from words w
      left join examples e on e.word_id = w.id
@@ -93,17 +96,36 @@ async function saveWord(item, source = "generated") {
   );
 
   const wordId = wordResult.rows[0].id;
-  if (Array.isArray(item.examples) && item.examples.length) {
+  const examples = Array.isArray(item.examples) && item.examples.length ? item.examples : null;
+  // Senses are only replaced when the caller provides a non-empty list, so
+  // saves that don't know about senses (imports, example refreshes) keep the
+  // existing ones.
+  const senses = Array.isArray(item.senses) && item.senses.length ? item.senses : null;
+  if (examples || senses) {
     await withTransaction(async (client) => {
-      await client.query("delete from examples where word_id = $1 and source = $2", [wordId, source]);
-      for (const example of item.examples) {
-        await client.query("insert into examples (word_id, es, zh, en, source) values ($1, $2, $3, $4, $5)", [
-          wordId,
-          example.es,
-          example.zh || "",
-          example.en || "",
-          source
-        ]);
+      if (examples) {
+        await client.query("delete from examples where word_id = $1 and source = $2", [wordId, source]);
+        for (const example of examples) {
+          await client.query("insert into examples (word_id, es, zh, en, source) values ($1, $2, $3, $4, $5)", [
+            wordId,
+            example.es,
+            example.zh || "",
+            example.en || "",
+            source
+          ]);
+        }
+      }
+      if (senses) {
+        await client.query("delete from word_senses where word_id = $1", [wordId]);
+        for (const [index, sense] of senses.entries()) {
+          await client.query("insert into word_senses (word_id, part, zh, en, ord) values ($1, $2, $3, $4, $5)", [
+            wordId,
+            sense.part || "unknown",
+            sense.zh || "",
+            sense.en || "",
+            index
+          ]);
+        }
       }
     });
   }

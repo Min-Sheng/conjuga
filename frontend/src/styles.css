@@ -274,6 +274,17 @@ input { cursor: text; }
 .ibv-section-h h3 { margin: 0; font-family: var(--serif), serif; font-weight: 500; font-size: 22px; color: var(--ink); }
 .ibv-rule { flex: 1; height: 1px; background: var(--rule); display: block; }
 
+/* senses */
+.ibv-senses { display: grid; gap: 8px; }
+.ibv-sense {
+  display: flex; align-items: baseline; gap: 12px;
+  background: var(--cream); border: 1px solid var(--rule); border-radius: var(--r);
+  padding: 10px 14px;
+}
+.ibv-sense .ibv-pos { flex-shrink: 0; }
+.ibv-sense-zh { font-weight: 600; white-space: nowrap; }
+.ibv-sense-en { color: var(--info); font-size: 14px; font-style: italic; }
+
 /* examples */
 .ibv-examples { display: grid; gap: 10px; }
 .ibv-ex {

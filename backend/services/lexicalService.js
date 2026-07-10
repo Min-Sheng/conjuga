@@ -23,16 +23,36 @@ function choosePart(entries) {
   return partMap[part] || part || "";
 }
 
+// Wiktionary-style "first-person singular present indicative of bancar"
+// entries describe inflections, not meanings; keep them out of the sense list.
+const INFLECTION_SENSE = /\b(indicative|subjunctive|imperative|participle|gerund|preterite|infinitive|inflection|form)\s+of\b/i;
+
+function sensesFromEntries(entries, maxPerPart = 4) {
+  const senses = [];
+  for (const entry of entries) {
+    const part = partMap[entry.partOfSpeech] || entry.partOfSpeech || "unknown";
+    let kept = 0;
+    for (const sense of entry.senses || []) {
+      if (kept >= maxPerPart) break;
+      const en = String(sense.definition || "").trim();
+      if (!en || INFLECTION_SENSE.test(en)) continue;
+      senses.push({ part, zh: "", en });
+      kept += 1;
+    }
+  }
+  return senses;
+}
+
 async function lookupLexicalInfo(word) {
   const url = new URL(`https://freedictionaryapi.com/api/v1/entries/es/${encodeURIComponent(word)}`);
   let response;
   try {
     response = await fetch(url);
   } catch (error) {
-    return { part: "", ipa: "", source: "FreeDictionaryAPI unreachable" };
+    return { part: "", ipa: "", senses: [], source: "FreeDictionaryAPI unreachable" };
   }
   if (!response.ok) {
-    return { part: "", ipa: "", source: "FreeDictionaryAPI miss" };
+    return { part: "", ipa: "", senses: [], source: "FreeDictionaryAPI miss" };
   }
 
   try {
@@ -41,11 +61,12 @@ async function lookupLexicalInfo(word) {
     return {
       part: choosePart(entries),
       ipa: chooseIpa(entries),
+      senses: sensesFromEntries(entries),
       source: "FreeDictionaryAPI"
     };
   } catch (error) {
-    return { part: "", ipa: "", source: "FreeDictionaryAPI miss" };
+    return { part: "", ipa: "", senses: [], source: "FreeDictionaryAPI miss" };
   }
 }
 
-module.exports = { lookupLexicalInfo };
+module.exports = { lookupLexicalInfo, sensesFromEntries };

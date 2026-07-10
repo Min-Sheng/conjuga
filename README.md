@@ -294,7 +294,8 @@ docker run --name palabra-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
 
 目前資料庫會保存：
 
-- `words`：單字主資料
+- `words`：單字主資料（主詞義）
+- `word_senses`：同一單字的多重詞義與詞性（查新字時由 FreeDictionary 補齊，AI 產生中文；`words` 保留主詞義供測驗使用）
 - `examples`：例句
 - `learners`：學習者 id，目前由瀏覽器產生匿名 id
 - `lookup_history`：查詢紀錄

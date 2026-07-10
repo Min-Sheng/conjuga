@@ -1,4 +1,5 @@
 const { findWord, saveWord } = require("./wordBankService");
+const { callAiJson } = require("./aiService");
 const { translateText } = require("./translationService");
 const { containsTargetWord, generateExamples } = require("./exampleService");
 const { lookupLexicalInfo } = require("./lexicalService");
@@ -12,6 +13,40 @@ function examplesNeedRefresh(word) {
       word.examples.length === 0 ||
       word.examples.some((example) => !containsTargetWord(example.es, word.word)))
   );
+}
+
+// Pair each sense with its Traditional Chinese translation; tolerate a
+// partial or malformed translation list by leaving zh empty (the UI falls
+// back to showing the English gloss).
+function applySenseTranslations(senses, translations) {
+  const list = Array.isArray(translations) ? translations : [];
+  return senses.map((sense, index) => ({
+    ...sense,
+    zh: typeof list[index] === "string" ? list[index].trim() : ""
+  }));
+}
+
+// One AI call translates every English gloss at once; without an AI key the
+// callAiJson fallback kicks in and the senses keep zh: "". The AI must answer
+// with an object (json_object response format forbids top-level arrays).
+async function localizeSenses(word, senses) {
+  if (!senses.length) return senses;
+  const result = await callAiJson(
+    [
+      {
+        role: "system",
+        content:
+          'Return only JSON shaped {"glosses": ["…"]} — one Traditional Chinese string per input gloss, same order. Translate each English dictionary gloss of the given Spanish word into a short Traditional Chinese meaning (no explanations).'
+      },
+      {
+        role: "user",
+        content: JSON.stringify({ word, glosses: senses.map((sense) => sense.en) })
+      }
+    ],
+    null
+  );
+  const translations = Array.isArray(result) ? result : result?.glosses;
+  return applySenseTranslations(senses, translations);
 }
 
 async function lookupWord(rawWord) {
@@ -44,10 +79,14 @@ async function lookupWord(rawWord) {
     nearAnswers: [],
     examples: []
   };
-  const examples = await generateExamples(baseWord);
+  const [examples, senses] = await Promise.all([
+    generateExamples(baseWord),
+    localizeSenses(text, lexical.senses || [])
+  ]);
 
   const generatedWord = {
     ...baseWord,
+    senses,
     examples: examples.examples
   };
   const translationSource = process.env.TRANSLATION_PROVIDER === "google" ? "Google Translate" : "MyMemory";
@@ -119,4 +158,4 @@ async function lookupWithSurfaceForm({ word, surfaceForm: rawSurfaceForm, learne
   return { ...result, word: responseWord, surfaceWord };
 }
 
-module.exports = { lookupWithSurfaceForm, lookupWord };
+module.exports = { lookupWithSurfaceForm, lookupWord, applySenseTranslations };

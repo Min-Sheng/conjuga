@@ -26,6 +26,17 @@ create table if not exists examples (
   created_at timestamptz not null default now()
 );
 
+create table if not exists word_senses (
+  id uuid primary key default gen_random_uuid(),
+  word_id uuid not null references words(id) on delete cascade,
+  part text not null default 'unknown',
+  zh text not null default '',
+  en text not null default '',
+  ord integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (word_id, ord)
+);
+
 create table if not exists learners (
   id uuid primary key default gen_random_uuid(),
   display_name text not null default 'Learner',
@@ -95,3 +106,4 @@ create index if not exists word_reviews_word_id_idx on word_reviews(word_id);
 create index if not exists learner_vocabulary_learner_created_idx
   on learner_vocabulary(learner_id, created_at desc);
 create index if not exists learner_vocabulary_word_idx on learner_vocabulary(word_id);
+create index if not exists word_senses_word_id_idx on word_senses(word_id);

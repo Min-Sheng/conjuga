@@ -1,5 +1,5 @@
 const { query } = require("../db/client");
-const { EXAMPLES_JSON_AGG } = require("../db/sqlFragments");
+const { EXAMPLES_JSON_AGG, SENSES_JSON } = require("../db/sqlFragments");
 const { canonicalizeSpanishWord, normalize } = require("../utils/text");
 const { ensureLearner } = require("./learningService");
 
@@ -36,6 +36,7 @@ function toVocabularyItem(row) {
       acceptedAnswers: row.accepted_answers || [],
       nearAnswers: row.near_answers || [],
       source: row.source || "",
+      senses: row.senses || [],
       examples: row.examples || []
     }
   };
@@ -66,6 +67,7 @@ const VOCABULARY_SELECT = `
     w.source,
     w.created_at as word_created_at,
     w.updated_at as word_updated_at,
+    ${SENSES_JSON} as senses,
     ${EXAMPLES_JSON_AGG} as examples
   from learner_vocabulary lv
   join words w on w.id = lv.word_id

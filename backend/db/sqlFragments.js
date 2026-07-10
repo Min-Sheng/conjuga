@@ -11,4 +11,17 @@ const EXAMPLES_JSON_AGG = `
   )
 `;
 
-module.exports = { EXAMPLES_JSON_AGG };
+// Shared SQL fragment: aggregate a word's senses (multiple meanings across
+// parts of speech) into a JSON array ordered by `ord`. Written as a
+// correlated subquery so it composes with other joins without producing a
+// cartesian product; requires the outer query to alias words as `w`.
+const SENSES_JSON = `
+  (select coalesce(
+     json_agg(json_build_object('part', s.part, 'zh', s.zh, 'en', s.en) order by s.ord),
+     '[]'
+   )
+   from word_senses s
+   where s.word_id = w.id)
+`;
+
+module.exports = { EXAMPLES_JSON_AGG, SENSES_JSON };

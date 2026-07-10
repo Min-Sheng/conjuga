@@ -33,6 +33,16 @@ export function WordCard({ word, onSpeak, onRegenerate, loading, headerAction, c
           <p className="ibv-meaning-text">{word.en || "No English translation yet"}</p>
         </div>
       </div>
+      {(word.senses || []).length > 1 && <>
+        <div className="ibv-section-h"><h3>Sentidos · 詞義總覽</h3><span className="ibv-rule" /><span className="ibv-eyebrow">{word.senses.length} 義</span></div>
+        <div className="ibv-senses">{word.senses.map((sense, index) => (
+          <div className="ibv-sense" key={`${sense.en}-${index}`}>
+            <span className="ibv-pos">{sense.part}</span>
+            <span className="ibv-sense-zh">{sense.zh || "—"}</span>
+            <span className="ibv-sense-en">{sense.en}</span>
+          </div>
+        ))}</div>
+      </>}
       {(word.examples || []).length > 0 && <>
         <div className="ibv-section-h"><h3>Ejemplos · 例句</h3><span className="ibv-rule" /><span className="ibv-eyebrow">{word.examples.length} 句</span></div>
         <div className="ibv-examples">{word.examples.map((example, index) => (
