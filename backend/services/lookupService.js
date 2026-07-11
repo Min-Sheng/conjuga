@@ -158,4 +158,4 @@ async function lookupWithSurfaceForm({ word, surfaceForm: rawSurfaceForm, learne
   return { ...result, word: responseWord, surfaceWord };
 }
 
-module.exports = { lookupWithSurfaceForm, lookupWord, applySenseTranslations };
+module.exports = { lookupWithSurfaceForm, lookupWord, applySenseTranslations, localizeSenses };
