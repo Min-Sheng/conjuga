@@ -42,6 +42,51 @@ test("sensesFromEntries drops inflection descriptions and blank definitions", ()
   assert.deepEqual(withBlanks.map((sense) => sense.en), ["wife"]);
 });
 
+test("sensesFromEntries always drops vulgar/offensive senses", () => {
+  const senses = sensesFromEntries([
+    {
+      partOfSpeech: "noun",
+      senses: [
+        { definition: "spoon", tags: ["feminine"] },
+        { definition: "a slur", tags: ["Guatemala", "vulgar", "feminine"] },
+        { definition: "an insult", tags: ["offensive"] }
+      ]
+    }
+  ]);
+  assert.deepEqual(senses.map((sense) => sense.en), ["spoon"]);
+});
+
+test("sensesFromEntries drops informal senses only when standard ones exist", () => {
+  const mixed = sensesFromEntries([
+    {
+      partOfSpeech: "noun",
+      senses: [
+        { definition: "spoon", tags: [] },
+        { definition: "regional slang meaning", tags: ["colloquial"] }
+      ]
+    }
+  ]);
+  assert.deepEqual(mixed.map((sense) => sense.en), ["spoon"]);
+
+  const informalOnly = sensesFromEntries([
+    {
+      partOfSpeech: "adjective",
+      senses: [{ definition: "cool, great", tags: ["colloquial"] }]
+    }
+  ]);
+  assert.deepEqual(informalOnly.map((sense) => sense.en), ["cool, great"]);
+});
+
+test("sensesFromEntries drops senses tagged as inflection forms", () => {
+  const senses = sensesFromEntries([
+    {
+      partOfSpeech: "verb",
+      senses: [{ definition: "something conjugated", tags: ["form of", "singular"] }]
+    }
+  ]);
+  assert.deepEqual(senses, []);
+});
+
 test("sensesFromEntries keeps unmapped parts and defaults missing ones", () => {
   const senses = sensesFromEntries([
     { partOfSpeech: "phrase", senses: [{ definition: "greeting" }] },

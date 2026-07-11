@@ -27,18 +27,34 @@ function choosePart(entries) {
 // entries describe inflections, not meanings; keep them out of the sense list.
 const INFLECTION_SENSE = /\b(indicative|subjunctive|imperative|participle|gerund|preterite|infinitive|inflection|form)\s+of\b/i;
 
+// Senses carrying these tags never belong in a learning app's meaning list.
+const EXCLUDED_TAGS = new Set(["vulgar", "offensive", "obscene", "derogatory"]);
+// These are only dropped when the word also has standard senses — a word
+// that is itself colloquial (e.g. guay) keeps its meanings.
+const INFORMAL_TAGS = new Set(["colloquial", "slang"]);
+
 function sensesFromEntries(entries, maxPerPart = 4) {
-  const senses = [];
+  const candidates = [];
   for (const entry of entries) {
     const part = partMap[entry.partOfSpeech] || entry.partOfSpeech || "unknown";
-    let kept = 0;
     for (const sense of entry.senses || []) {
-      if (kept >= maxPerPart) break;
       const en = String(sense.definition || "").trim();
-      if (!en || INFLECTION_SENSE.test(en)) continue;
-      senses.push({ part, zh: "", en });
-      kept += 1;
+      const tags = (sense.tags || []).map((tag) => String(tag).toLowerCase());
+      if (!en || tags.includes("form of") || INFLECTION_SENSE.test(en)) continue;
+      if (tags.some((tag) => EXCLUDED_TAGS.has(tag))) continue;
+      candidates.push({ part, en, informal: tags.some((tag) => INFORMAL_TAGS.has(tag)) });
     }
+  }
+
+  const standard = candidates.filter((candidate) => !candidate.informal);
+  const chosen = standard.length ? standard : candidates;
+
+  const perPartCount = {};
+  const senses = [];
+  for (const { part, en } of chosen) {
+    perPartCount[part] = (perPartCount[part] || 0) + 1;
+    if (perPartCount[part] > maxPerPart) continue;
+    senses.push({ part, zh: "", en });
   }
   return senses;
 }
